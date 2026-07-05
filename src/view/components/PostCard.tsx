@@ -1,7 +1,7 @@
 import { Menu } from "obsidian";
 import { MouseEvent, useEffect, useState } from "react";
 import { timeLabel } from "../../services/journal-model";
-import { Thread } from "../../types";
+import { HIGHLIGHT_COLOURS, HighlightColour, Thread } from "../../types";
 import { usePlugin } from "../context";
 import { Composer } from "./Composer";
 import { Icon } from "./Icon";
@@ -48,6 +48,7 @@ export function PostCard({
 	onRequestReply,
 	onReplySubmit,
 	onReplyCancel,
+	onSetHighlight,
 	onOpenPath,
 	onDeletePath,
 }: {
@@ -62,6 +63,7 @@ export function PostCard({
 	onRequestReply: () => void;
 	onReplySubmit: (body: string) => void;
 	onReplyCancel: () => void;
+	onSetHighlight: (colour: HighlightColour | null) => void;
 	onOpenPath: (path: string) => void;
 	onDeletePath: (path: string) => void;
 }) {
@@ -72,6 +74,30 @@ export function PostCard({
 		const menu = new Menu();
 		menu.addItem((item) => item.setTitle("Reply").setIcon("reply").onClick(onRequestReply));
 		menu.addItem((item) => item.setTitle("Edit").setIcon("pencil").onClick(onRequestEdit));
+		// A second menu rather than a submenu: MenuItem.setSubmenu is not in the
+		// published API.
+		const event = e.nativeEvent;
+		menu.addItem((item) =>
+			item.setTitle("Highlight…").setIcon("highlighter").onClick(() => {
+				const colours = new Menu();
+				for (const colour of HIGHLIGHT_COLOURS) {
+					colours.addItem((ci) =>
+						ci
+							.setTitle(colour.charAt(0).toUpperCase() + colour.slice(1))
+							.setIcon("circle")
+							.setChecked(root.highlight === colour)
+							.onClick(() => onSetHighlight(root.highlight === colour ? null : colour)),
+					);
+				}
+				if (root.highlight) {
+					colours.addSeparator();
+					colours.addItem((ci) =>
+						ci.setTitle("Clear").setIcon("circle-off").onClick(() => onSetHighlight(null)),
+					);
+				}
+				colours.showAtMouseEvent(event);
+			}),
+		);
 		menu.addItem((item) =>
 			item.setTitle("Open as note").setIcon("file-symlink").onClick(() => onOpenPath(root.path)),
 		);
@@ -88,7 +114,9 @@ export function PostCard({
 
 	return (
 		<article
-			className={`ripple-post${isCursor ? " is-cursor" : ""}`}
+			className={`ripple-post${isCursor ? " is-cursor" : ""}${
+				root.highlight ? ` ripple-hl-${root.highlight}` : ""
+			}`}
 			data-path={root.path}
 			onClick={(e) => {
 				if (e.metaKey || e.ctrlKey) onOpenPath(root.path);

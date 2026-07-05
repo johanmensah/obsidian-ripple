@@ -1,5 +1,15 @@
 /* Ripple — all classes are prefixed ripple-; state modifiers use is-. */
 
+/* Highlight palette over Obsidian's theme colours (light/dark safe). */
+body {
+	--ripple-hl-sky: var(--color-cyan);
+	--ripple-hl-amber: var(--color-yellow);
+	--ripple-hl-rose: var(--color-pink);
+	--ripple-hl-lime: var(--color-green);
+	--ripple-hl-violet: var(--color-purple);
+	--ripple-hl-slate: var(--text-muted);
+}
+
 /* The feed owns its pane; Obsidian is the window frame only. */
 .ripple-feed.view-content {
 	padding: 0;
@@ -126,6 +136,50 @@
 
 .theme-dark .ripple-tag-chip {
 	color: hsl(var(--ripple-tag-hue), 55%, 75%);
+}
+
+.ripple-hl-sky {
+	--ripple-hl: var(--ripple-hl-sky);
+}
+.ripple-hl-amber {
+	--ripple-hl: var(--ripple-hl-amber);
+}
+.ripple-hl-rose {
+	--ripple-hl: var(--ripple-hl-rose);
+}
+.ripple-hl-lime {
+	--ripple-hl: var(--ripple-hl-lime);
+}
+.ripple-hl-violet {
+	--ripple-hl: var(--ripple-hl-violet);
+}
+.ripple-hl-slate {
+	--ripple-hl: var(--ripple-hl-slate);
+}
+
+.ripple-post[class*="ripple-hl-"] {
+	border-left: 3px solid var(--ripple-hl);
+	padding-left: var(--size-4-3);
+	margin-left: calc(-1 * var(--size-4-3));
+}
+
+.ripple-side-hl-sky .ripple-side-icon {
+	color: var(--ripple-hl-sky);
+}
+.ripple-side-hl-amber .ripple-side-icon {
+	color: var(--ripple-hl-amber);
+}
+.ripple-side-hl-rose .ripple-side-icon {
+	color: var(--ripple-hl-rose);
+}
+.ripple-side-hl-lime .ripple-side-icon {
+	color: var(--ripple-hl-lime);
+}
+.ripple-side-hl-violet .ripple-side-icon {
+	color: var(--ripple-hl-violet);
+}
+.ripple-side-hl-slate .ripple-side-icon {
+	color: var(--ripple-hl-slate);
 }
 
 /* Threads: replies indent under the root behind a thread line. */

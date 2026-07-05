@@ -1,6 +1,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { MonthEntry } from "../../services/journal-model";
 import { JournalStore } from "../../services/journal-store";
+import { HIGHLIGHT_COLOURS } from "../../types";
 import { usePlugin } from "../context";
 import { Icon } from "./Icon";
 
@@ -10,12 +11,14 @@ function Row({
 	count,
 	active,
 	onClick,
+	className,
 }: {
 	icon: string;
 	label: string;
 	count: number;
 	active: boolean;
 	onClick: () => void;
+	className?: string;
 }) {
 	// Not a <button>: Obsidian's button:not(.clickable-icon) chrome outranks
 	// single-class overrides, so a button can never render as a flat nav row.
@@ -23,7 +26,7 @@ function Row({
 		<div
 			role="button"
 			tabIndex={0}
-			className={active ? "ripple-side-row is-active" : "ripple-side-row"}
+			className={`ripple-side-row${active ? " is-active" : ""}${className ? ` ${className}` : ""}`}
 			onClick={onClick}
 			onKeyDown={(e) => {
 				if (e.key === "Enter" || e.key === " ") {
@@ -114,6 +117,22 @@ export function Sidebar({ store }: { store: JournalStore }) {
 							/>
 						))}
 				</div>
+			))}
+			{HIGHLIGHT_COLOURS.some((c) => snap.highlightCounts[c]) && (
+				<div className="ripple-side-heading">Highlights</div>
+			)}
+			{HIGHLIGHT_COLOURS.filter((c) => snap.highlightCounts[c]).map((colour) => (
+				<Row
+					key={colour}
+					icon="circle"
+					label={colour.charAt(0).toUpperCase() + colour.slice(1)}
+					count={snap.highlightCounts[colour] ?? 0}
+					active={snap.highlightFilter === colour}
+					className={`ripple-side-hl-${colour}`}
+					onClick={pick(() =>
+						store.setHighlightFilter(snap.highlightFilter === colour ? null : colour),
+					)}
+				/>
 			))}
 			{snap.tagEntries.length > 0 && <div className="ripple-side-heading">Tags</div>}
 			{snap.tagEntries.map(({ tag, count }) => (

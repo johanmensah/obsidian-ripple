@@ -1,4 +1,5 @@
 import { App, TFile, normalizePath } from "obsidian";
+import { HighlightColour } from "../types";
 
 function pad(n: number): string {
 	return String(n).padStart(2, "0");
@@ -67,6 +68,17 @@ export async function saveEdit(app: App, file: TFile, body: string): Promise<voi
 	});
 	await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 		fm.updated = isoLocal(new Date());
+	});
+}
+
+export async function setHighlight(
+	app: App,
+	file: TFile,
+	colour: HighlightColour | null,
+): Promise<void> {
+	await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+		if (colour) fm.highlight = colour;
+		else delete fm.highlight;
 	});
 }
 

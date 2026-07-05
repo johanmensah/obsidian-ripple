@@ -3,7 +3,8 @@ import { KeyboardEvent, useEffect, useRef, useState, useSyncExternalStore } from
 import { ConfirmModal } from "../modals/ConfirmModal";
 import { groupByDay } from "../services/journal-model";
 import { JournalStore } from "../services/journal-store";
-import { createPost, deletePost, saveEdit } from "../services/post-io";
+import { createPost, deletePost, saveEdit, setHighlight } from "../services/post-io";
+import { HIGHLIGHT_COLOURS, HighlightColour } from "../types";
 import { usePlugin } from "./context";
 import { Composer } from "./components/Composer";
 import { PostCard } from "./components/PostCard";
@@ -80,6 +81,21 @@ export function FeedApp({ store }: { store: JournalStore }) {
 		}).open();
 	};
 
+	const applyHighlight = (path: string, colour: HighlightColour | null) => {
+		const file = fileOf(path);
+		if (!file) return;
+		void setHighlight(plugin.app, file, colour).catch((err: unknown) => {
+			console.error("Ripple: set highlight failed", err);
+			new Notice("Could not set the highlight.");
+		});
+	};
+
+	const cycleHighlight = (path: string) => {
+		const current = snap.threads.find((t) => t.root.path === path)?.root.highlight ?? null;
+		const idx = current ? HIGHLIGHT_COLOURS.indexOf(current) : -1;
+		applyHighlight(path, HIGHLIGHT_COLOURS[idx + 1] ?? null);
+	};
+
 	const focusComposer = () => {
 		composerBoxRef.current?.querySelector("textarea")?.focus();
 	};
@@ -123,6 +139,12 @@ export function FeedApp({ store }: { store: JournalStore }) {
 				if (cursor) {
 					e.preventDefault();
 					setReplying(cursor);
+				}
+				break;
+			case "h":
+				if (cursor) {
+					e.preventDefault();
+					cycleHighlight(cursor);
 				}
 				break;
 			case "n":
@@ -170,6 +192,7 @@ export function FeedApp({ store }: { store: JournalStore }) {
 									submitReply(thread.root.path, thread.root.basename, body)
 								}
 								onReplyCancel={() => setReplying(null)}
+								onSetHighlight={(colour) => applyHighlight(thread.root.path, colour)}
 								onOpenPath={openAsNote}
 								onDeletePath={(path) =>
 									confirmDelete(
