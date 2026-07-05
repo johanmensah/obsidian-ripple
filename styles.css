@@ -58,6 +58,63 @@
 	color: var(--text-faint);
 }
 
+.ripple-app {
+	outline: none;
+}
+
+.ripple-composer textarea {
+	width: 100%;
+	resize: none;
+	overflow: hidden;
+	min-height: calc(var(--font-text-size) * 2.4);
+	padding: var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	font-family: inherit;
+	font-size: var(--font-text-size);
+	line-height: var(--line-height-normal);
+}
+
+.ripple-composer textarea:focus {
+	border-color: var(--background-modifier-border-focus);
+	box-shadow: none;
+}
+
+.ripple-composer-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-1);
+	min-height: var(--size-4-6);
+}
+
+.ripple-composer-actions button {
+	visibility: hidden;
+}
+
+.ripple-composer:focus-within .ripple-composer-actions button,
+.ripple-composer-actions button:not(:disabled) {
+	visibility: visible;
+}
+
+.ripple-post.is-cursor {
+	box-shadow: inset 2px 0 0 var(--interactive-accent);
+	padding-left: var(--size-4-3);
+	margin-left: calc(-1 * var(--size-4-3));
+}
+
+.ripple-post-menu {
+	margin-left: auto;
+	opacity: 0;
+}
+
+.ripple-post:hover .ripple-post-menu,
+.ripple-post.is-cursor .ripple-post-menu,
+.ripple-post-menu:focus-visible {
+	opacity: 1;
+}
+
 .ripple-tag-chip {
 	cursor: var(--cursor);
 	padding: 0 var(--size-4-2);
