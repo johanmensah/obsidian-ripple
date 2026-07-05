@@ -42,8 +42,7 @@ export class RippleSettingTab extends PluginSettingTab {
 			.setDesc("Posts live here and nowhere else; the rest of the vault is untouched.")
 			.addText((text) =>
 				text.setValue(this.plugin.settings.journalFolder).onChange(async (value) => {
-					this.plugin.settings.journalFolder = value.trim() || DEFAULT_SETTINGS.journalFolder;
-					await this.plugin.saveSettings();
+					await this.plugin.setJournalFolder(value.trim() || DEFAULT_SETTINGS.journalFolder);
 				}),
 			)
 			.addExtraButton((button) =>
@@ -52,8 +51,7 @@ export class RippleSettingTab extends PluginSettingTab {
 					.setTooltip("Choose an existing folder")
 					.onClick(() => {
 						new FolderPicker(this.app, (folder) => {
-							this.plugin.settings.journalFolder = folder.path;
-							void this.plugin.saveSettings();
+							void this.plugin.setJournalFolder(folder.path);
 							this.display();
 						}).open();
 					}),

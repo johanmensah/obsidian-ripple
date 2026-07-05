@@ -1,1 +1,72 @@
 /* Ripple — all classes are prefixed ripple-; state modifiers use is-. */
+
+/* The feed owns its pane; Obsidian is the window frame only. */
+.ripple-feed.view-content {
+	padding: 0;
+	overflow-y: auto;
+	background: var(--background-primary);
+}
+
+.ripple-app {
+	min-height: 100%;
+}
+
+.ripple-column {
+	max-width: 44rem;
+	margin: 0 auto;
+	padding: var(--size-4-6) var(--size-4-6) 20vh;
+}
+
+.ripple-empty {
+	padding-top: 25vh;
+	text-align: center;
+	color: var(--text-faint);
+	font-size: var(--font-ui-medium);
+}
+
+.ripple-day-header {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	margin: 0;
+	padding: var(--size-4-2) 0;
+	background: var(--background-primary);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+}
+
+.ripple-post {
+	padding: var(--size-4-4) 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.ripple-post-body > p:first-child {
+	margin-top: 0;
+}
+
+.ripple-post-body > p:last-child {
+	margin-bottom: 0;
+}
+
+.ripple-post-meta {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+.ripple-tag-chip {
+	cursor: var(--cursor);
+	padding: 0 var(--size-4-2);
+	border-radius: var(--radius-s);
+	font-size: var(--font-ui-smaller);
+	background: hsla(var(--ripple-tag-hue), 45%, 50%, 0.14);
+	color: hsl(var(--ripple-tag-hue), 45%, 38%);
+}
+
+.theme-dark .ripple-tag-chip {
+	color: hsl(var(--ripple-tag-hue), 55%, 75%);
+}
