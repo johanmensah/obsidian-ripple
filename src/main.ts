@@ -1,3 +1,4 @@
+import { initAI } from "@obsidian-ai-providers/sdk";
 import { EventRef, Plugin, debounce } from "obsidian";
 import { JournalStore } from "./services/journal-store";
 import { DEFAULT_SETTINGS, RippleSettingTab, RippleSettings, UiState } from "./settings";
@@ -33,19 +34,30 @@ export default class RipplePlugin extends Plugin {
 	);
 
 	async onload(): Promise<void> {
-		await this.loadSettings();
-		this.registerView(VIEW_TYPE_FEED, (leaf) => new FeedView(leaf, this));
-		this.registerView(VIEW_TYPE_NAV, (leaf) => new NavView(leaf, this));
-		this.addRibbonIcon("notebook-pen", "Ripple", () => void this.toggleJournal());
-		this.addCommand({
-			id: "open-journal",
-			name: "Open journal",
-			callback: () => void this.activateJournal(),
-		});
-		this.addSettingTab(new RippleSettingTab(this.app, this));
-		// Restore runs here rather than in View.onClose: plugin unload keeps
-		// leaves in place and fires no layout-change, so this never runs at unload.
-		this.registerEvent(this.app.workspace.on("layout-change", () => this.onLayoutChange()));
+		// initAI readies the AI Providers bridge; with the fallback disabled it
+		// changes nothing when the plugin is absent — reflect degrades instead.
+		await initAI(
+			this.app,
+			this,
+			async () => {
+				await this.loadSettings();
+				this.registerView(VIEW_TYPE_FEED, (leaf) => new FeedView(leaf, this));
+				this.registerView(VIEW_TYPE_NAV, (leaf) => new NavView(leaf, this));
+				this.addRibbonIcon("notebook-pen", "Ripple", () => void this.toggleJournal());
+				this.addCommand({
+					id: "open-journal",
+					name: "Open journal",
+					callback: () => void this.activateJournal(),
+				});
+				this.addSettingTab(new RippleSettingTab(this.app, this));
+				// Restore runs here rather than in View.onClose: plugin unload keeps
+				// leaves in place and fires no layout-change, so this never runs at unload.
+				this.registerEvent(
+					this.app.workspace.on("layout-change", () => this.onLayoutChange()),
+				);
+			},
+			{ disableFallback: true },
+		);
 	}
 
 	/** The ribbon toggles: open Ripple, or close it and return to the prior view. */

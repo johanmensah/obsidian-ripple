@@ -224,6 +224,16 @@ body {
 	font-size: var(--font-ui-medium);
 }
 
+.ripple-pending-text {
+	white-space: pre-wrap;
+	color: var(--text-muted);
+}
+
+.ripple-pending-stop {
+	margin-left: auto;
+	--icon-size: var(--icon-xs);
+}
+
 /* Left-sidebar navigation, styled to match Obsidian's own. */
 .ripple-nav {
 	padding: var(--size-2-3) var(--size-2-2);

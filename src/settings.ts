@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type RipplePlugin from "./main";
 import { FolderPicker } from "./modals/FolderPicker";
+import { getAI } from "./services/reflect";
 
 /** UI state persisted under the reserved "ui" key in data.json, beside the settings. */
 export interface UiState {
@@ -55,6 +56,42 @@ export class RippleSettingTab extends PluginSettingTab {
 							this.display();
 						}).open();
 					}),
+			);
+
+		const provider = new Setting(containerEl)
+			.setName("AI provider")
+			.setDesc("Looking for the AI Providers plugin…");
+		void getAI().then((ai) => {
+			if (!ai) {
+				provider.setDesc(
+					"Install and configure the AI Providers plugin to enable reflections.",
+				);
+				return;
+			}
+			provider.setDesc("Reflections stream from this provider; keys stay with AI Providers.");
+			provider.addDropdown((dropdown) => {
+				dropdown.addOption("", "None");
+				for (const p of ai.providers) {
+					dropdown.addOption(p.id, p.model ? `${p.name} (${p.model})` : p.name);
+				}
+				const current = this.plugin.settings.aiProviderId;
+				dropdown.setValue(current && ai.providers.some((p) => p.id === current) ? current : "");
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.aiProviderId = value || null;
+					await this.plugin.saveSettings();
+				});
+			});
+		});
+
+		new Setting(containerEl)
+			.setName("Reflection prompt")
+			.setDesc("How the AI should read and reply to an entry.")
+			.addTextArea((text) =>
+				text.setValue(this.plugin.settings.reflectionPrompt).onChange(async (value) => {
+					this.plugin.settings.reflectionPrompt =
+						value.trim() || DEFAULT_REFLECTION_PROMPT;
+					await this.plugin.saveSettings();
+				}),
 			);
 	}
 }

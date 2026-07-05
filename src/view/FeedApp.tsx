@@ -4,7 +4,8 @@ import { ConfirmModal } from "../modals/ConfirmModal";
 import { groupByDay } from "../services/journal-model";
 import { JournalStore } from "../services/journal-store";
 import { createPost, deletePost, saveEdit, setHighlight } from "../services/post-io";
-import { HIGHLIGHT_COLOURS, HighlightColour } from "../types";
+import { getAI, reflect, threadText } from "../services/reflect";
+import { HIGHLIGHT_COLOURS, HighlightColour, Thread } from "../types";
 import { usePlugin } from "./context";
 import { Composer } from "./components/Composer";
 import { PostCard } from "./components/PostCard";
@@ -17,6 +18,23 @@ export function FeedApp({ store }: { store: JournalStore }) {
 	const [cursor, setCursor] = useState<string | null>(null);
 	const [editing, setEditing] = useState<string | null>(null);
 	const [replying, setReplying] = useState<string | null>(null);
+	const [aiReady, setAiReady] = useState(false);
+	const [pending, setPending] = useState<{
+		rootPath: string;
+		providerName: string;
+		text: string;
+		abort: AbortController;
+	} | null>(null);
+
+	useEffect(() => {
+		let alive = true;
+		void getAI().then((ai) => {
+			if (alive) setAiReady(ai !== null);
+		});
+		return () => {
+			alive = false;
+		};
+	}, []);
 
 	const rootPaths = snap.threads.map((t) => t.root.path);
 
@@ -79,6 +97,51 @@ export function FeedApp({ store }: { store: JournalStore }) {
 				new Notice("Could not delete the post.");
 			});
 		}).open();
+	};
+
+	const reflectOn = (thread: Thread) => {
+		if (pending) return; // one reflection at a time
+		void (async () => {
+			const ai = await getAI();
+			if (!ai) {
+				new Notice("Install and configure the AI Providers plugin to enable reflections.");
+				return;
+			}
+			const provider = ai.providers.find((p) => p.id === plugin.settings.aiProviderId);
+			if (!provider) {
+				new Notice("Choose an AI provider in Ripple's settings.");
+				return;
+			}
+			const abort = new AbortController();
+			setPending({ rootPath: thread.root.path, providerName: provider.name, text: "", abort });
+			try {
+				const text = await reflect({
+					ai,
+					provider,
+					systemPrompt: plugin.settings.reflectionPrompt,
+					prompt: await threadText(plugin.app, thread),
+					onProgress: (accumulated) =>
+						setPending((p) =>
+							p && p.rootPath === thread.root.path ? { ...p, text: accumulated } : p,
+						),
+					abortController: abort,
+				});
+				// The file exists only once there is a final text; abort writes nothing.
+				if (text.trim()) {
+					await createPost(plugin.app, snap.journalFolder, text, {
+						replyTo: thread.root.basename,
+						ai: true,
+					});
+				}
+			} catch (err) {
+				if (!abort.signal.aborted) {
+					console.error("Ripple: reflection failed", err);
+					new Notice("The reflection failed.");
+				}
+			} finally {
+				setPending((p) => (p && p.rootPath === thread.root.path ? null : p));
+			}
+		})();
 	};
 
 	const applyHighlight = (path: string, colour: HighlightColour | null) => {
@@ -193,6 +256,14 @@ export function FeedApp({ store }: { store: JournalStore }) {
 								}
 								onReplyCancel={() => setReplying(null)}
 								onSetHighlight={(colour) => applyHighlight(thread.root.path, colour)}
+								reflectEnabled={aiReady && !pending}
+								pendingReflection={
+									pending && pending.rootPath === thread.root.path
+										? { providerName: pending.providerName, text: pending.text }
+										: null
+								}
+								onRequestReflect={() => reflectOn(thread)}
+								onStopReflection={() => pending?.abort.abort()}
 								onOpenPath={openAsNote}
 								onDeletePath={(path) =>
 									confirmDelete(

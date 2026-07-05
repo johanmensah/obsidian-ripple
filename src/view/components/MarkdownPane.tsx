@@ -1,5 +1,6 @@
 import { Component, MarkdownRenderer } from "obsidian";
 import { useEffect, useRef } from "react";
+import { stripFrontmatter } from "../../services/post-io";
 import { usePlugin } from "../context";
 
 /** Obsidian-rendered post body; frontmatter stripped. StrictMode-safe. */
@@ -15,8 +16,7 @@ export function MarkdownPane({ path, mtime }: { path: string; mtime: number }) {
 		component.load();
 		void plugin.app.vault
 			.cachedRead(file)
-			.then((text) => text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ""))
-			.then((body) => MarkdownRenderer.render(plugin.app, body, el, path, component));
+			.then((text) => MarkdownRenderer.render(plugin.app, stripFrontmatter(text), el, path, component));
 		return () => {
 			component.unload();
 			el.empty();

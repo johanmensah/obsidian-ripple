@@ -5,6 +5,12 @@ function pad(n: number): string {
 	return String(n).padStart(2, "0");
 }
 
+const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
+
+export function stripFrontmatter(text: string): string {
+	return text.replace(FRONTMATTER, "");
+}
+
 /** ISO 8601 with the local offset, per the frontmatter schema. */
 export function isoLocal(d: Date): string {
 	const offset = -d.getTimezoneOffset();
@@ -63,7 +69,7 @@ export async function createPost(
 /** Replaces the body below the frontmatter block, then stamps `updated`. */
 export async function saveEdit(app: App, file: TFile, body: string): Promise<void> {
 	await app.vault.process(file, (text) => {
-		const head = text.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/)?.[0] ?? "";
+		const head = text.match(FRONTMATTER)?.[0] ?? "";
 		return `${head}${body.trim()}\n`;
 	});
 	await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {

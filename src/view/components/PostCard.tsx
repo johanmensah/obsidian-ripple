@@ -1,6 +1,7 @@
 import { Menu } from "obsidian";
 import { MouseEvent, useEffect, useState } from "react";
 import { timeLabel } from "../../services/journal-model";
+import { stripFrontmatter } from "../../services/post-io";
 import { HIGHLIGHT_COLOURS, HighlightColour, Thread } from "../../types";
 import { usePlugin } from "../context";
 import { Composer } from "./Composer";
@@ -17,7 +18,7 @@ function EditBody({ path, onDone }: { path: string; onDone: (body: string | null
 		if (!file) return;
 		let alive = true;
 		void plugin.app.vault.cachedRead(file).then((text) => {
-			if (alive) setInitial(text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ""));
+			if (alive) setInitial(stripFrontmatter(text));
 		});
 		return () => {
 			alive = false;
@@ -49,6 +50,10 @@ export function PostCard({
 	onReplySubmit,
 	onReplyCancel,
 	onSetHighlight,
+	reflectEnabled,
+	pendingReflection,
+	onRequestReflect,
+	onStopReflection,
 	onOpenPath,
 	onDeletePath,
 }: {
@@ -64,6 +69,10 @@ export function PostCard({
 	onReplySubmit: (body: string) => void;
 	onReplyCancel: () => void;
 	onSetHighlight: (colour: HighlightColour | null) => void;
+	reflectEnabled: boolean;
+	pendingReflection: { providerName: string; text: string } | null;
+	onRequestReflect: () => void;
+	onStopReflection: () => void;
 	onOpenPath: (path: string) => void;
 	onDeletePath: (path: string) => void;
 }) {
@@ -73,6 +82,13 @@ export function PostCard({
 		e.stopPropagation();
 		const menu = new Menu();
 		menu.addItem((item) => item.setTitle("Reply").setIcon("reply").onClick(onRequestReply));
+		menu.addItem((item) =>
+			item
+				.setTitle("Reflect")
+				.setIcon("sparkles")
+				.setDisabled(!reflectEnabled)
+				.onClick(onRequestReflect),
+		);
 		menu.addItem((item) => item.setTitle("Edit").setIcon("pencil").onClick(onRequestEdit));
 		// A second menu rather than a submenu: MenuItem.setSubmenu is not in the
 		// published API.
@@ -141,10 +157,12 @@ export function PostCard({
 					<Icon name="more-horizontal" />
 				</button>
 			</footer>
-			{(replies.length > 0 || isReplying) && (
+			{(replies.length > 0 || isReplying || pendingReflection) && (
 				<ThreadedReplies
 					replies={replies}
 					replying={isReplying}
+					pending={pendingReflection}
+					onStopPending={onStopReflection}
 					onReplySubmit={onReplySubmit}
 					onReplyCancel={onReplyCancel}
 					onOpen={onOpenPath}

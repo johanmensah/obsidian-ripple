@@ -58,6 +58,8 @@ function ReplyCard({
 export function ThreadedReplies({
 	replies,
 	replying,
+	pending,
+	onStopPending,
 	onReplySubmit,
 	onReplyCancel,
 	onOpen,
@@ -65,6 +67,8 @@ export function ThreadedReplies({
 }: {
 	replies: Post[];
 	replying: boolean;
+	pending: { providerName: string; text: string } | null;
+	onStopPending: () => void;
 	onReplySubmit: (body: string) => void;
 	onReplyCancel: () => void;
 	onOpen: (path: string) => void;
@@ -75,6 +79,24 @@ export function ThreadedReplies({
 			{replies.map((reply) => (
 				<ReplyCard key={reply.path} reply={reply} onOpen={onOpen} onDelete={onDelete} />
 			))}
+			{pending && (
+				<div className="ripple-reply is-ai is-pending">
+					<div className="ripple-reply-byline">
+						<span className="ripple-reply-ai">
+							<Icon name="sparkles" className="ripple-reply-ai-icon" />
+							{pending.providerName}
+						</span>
+						<button
+							className="clickable-icon ripple-pending-stop"
+							aria-label="Stop the reflection"
+							onClick={onStopPending}
+						>
+							<Icon name="square" />
+						</button>
+					</div>
+					<div className="ripple-post-body ripple-pending-text">{pending.text || "…"}</div>
+				</div>
+			)}
 			{replying && (
 				<Composer
 					placeholder="Reply…"
