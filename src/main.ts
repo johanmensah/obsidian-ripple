@@ -2,6 +2,7 @@ import { EventRef, Plugin, debounce } from "obsidian";
 import { JournalStore } from "./services/journal-store";
 import { DEFAULT_SETTINGS, RippleSettingTab, RippleSettings, UiState } from "./settings";
 import { FeedView, VIEW_TYPE_FEED } from "./view/FeedView";
+import { NavView, VIEW_TYPE_NAV } from "./view/NavView";
 
 export default class RipplePlugin extends Plugin {
 	settings: RippleSettings = DEFAULT_SETTINGS;
@@ -10,6 +11,8 @@ export default class RipplePlugin extends Plugin {
 	private storeRefs = 0;
 	private storeEventRefs: EventRef[] = [];
 	private unsubscribeUiSave: (() => void) | null = null;
+	/** Right sidebar's collapsed state before Ripple opened; null when not captured. */
+	private priorRightCollapsed: boolean | null = null;
 
 	private readonly saveUi = debounce(
 		() => {
@@ -32,12 +35,29 @@ export default class RipplePlugin extends Plugin {
 	async onload(): Promise<void> {
 		await this.loadSettings();
 		this.registerView(VIEW_TYPE_FEED, (leaf) => new FeedView(leaf, this));
+		this.registerView(VIEW_TYPE_NAV, (leaf) => new NavView(leaf, this));
+		this.addRibbonIcon("notebook-pen", "Ripple", () => void this.toggleJournal());
 		this.addCommand({
 			id: "open-journal",
 			name: "Open journal",
 			callback: () => void this.activateJournal(),
 		});
 		this.addSettingTab(new RippleSettingTab(this.app, this));
+		// Restore runs here rather than in View.onClose: plugin unload keeps
+		// leaves in place and fires no layout-change, so this never runs at unload.
+		this.registerEvent(this.app.workspace.on("layout-change", () => this.onLayoutChange()));
+	}
+
+	/** The ribbon toggles: open Ripple, or close it and return to the prior view. */
+	async toggleJournal(): Promise<void> {
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_FEED);
+		if (leaves.length > 0) {
+			// User-driven close; the layout-change handler detaches the nav and
+			// restores the right sidebar.
+			for (const leaf of leaves) leaf.detach();
+			return;
+		}
+		await this.activateJournal();
 	}
 
 	/** One store shared by the nav and feed views; vault listeners live only
@@ -76,12 +96,36 @@ export default class RipplePlugin extends Plugin {
 
 	async activateJournal(): Promise<void> {
 		const { workspace } = this.app;
+		if (
+			workspace.getLeavesOfType(VIEW_TYPE_FEED).length === 0 &&
+			this.priorRightCollapsed === null
+		) {
+			this.priorRightCollapsed = workspace.rightSplit?.collapsed ?? true;
+		}
 		let leaf = workspace.getLeavesOfType(VIEW_TYPE_FEED)[0];
 		if (!leaf) {
 			leaf = workspace.getLeaf(true);
 			await leaf.setViewState({ type: VIEW_TYPE_FEED, active: true });
 		}
 		await workspace.revealLeaf(leaf);
+		// The nav becomes the left sidebar's visible tab, in place of the file
+		// navigator; reveal also expands a collapsed sidebar.
+		await workspace.ensureSideLeaf(VIEW_TYPE_NAV, "left", { reveal: true });
+		workspace.rightSplit?.collapse();
+	}
+
+	private onLayoutChange(): void {
+		const { workspace } = this.app;
+		const open = workspace.getLeavesOfType(VIEW_TYPE_FEED).length > 0;
+		if (open && this.priorRightCollapsed === null) {
+			// Feed arrived via workspace restore; adopt the current state as prior.
+			this.priorRightCollapsed = workspace.rightSplit?.collapsed ?? true;
+		} else if (!open && this.priorRightCollapsed !== null) {
+			// Detaching the nav leaf hands the left sidebar back to its previous tab.
+			for (const leaf of workspace.getLeavesOfType(VIEW_TYPE_NAV)) leaf.detach();
+			if (!this.priorRightCollapsed) workspace.rightSplit?.expand();
+			this.priorRightCollapsed = null;
+		}
 	}
 
 	ensureJournalOpen(): void {

@@ -127,3 +127,78 @@
 .theme-dark .ripple-tag-chip {
 	color: hsl(var(--ripple-tag-hue), 55%, 75%);
 }
+
+/* Left-sidebar navigation, styled to match Obsidian's own. */
+.ripple-nav {
+	padding: var(--size-2-3) var(--size-2-2);
+}
+
+.ripple-sidebar {
+	display: flex;
+	flex-direction: column;
+}
+
+.ripple-side-heading {
+	margin: var(--size-4-2) var(--size-2-3) var(--size-2-1);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--nav-heading-weight);
+	color: var(--nav-heading-color);
+}
+
+.ripple-side-year {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	cursor: var(--cursor);
+}
+
+.ripple-side-chevron {
+	display: flex;
+	--icon-size: var(--icon-xs);
+}
+
+.ripple-side-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	padding: var(--nav-item-padding);
+	border-radius: var(--nav-item-radius);
+	margin-bottom: var(--nav-item-margin-bottom);
+	cursor: var(--cursor);
+	font-size: var(--nav-item-size);
+	font-weight: var(--nav-item-weight);
+	color: var(--nav-item-color);
+}
+
+.ripple-side-row:hover {
+	background: var(--nav-item-background-hover);
+	color: var(--nav-item-color-hover);
+	font-weight: var(--nav-item-weight-hover);
+}
+
+.ripple-side-row.is-active {
+	background: var(--nav-item-background-active);
+	color: var(--nav-item-color-active);
+	font-weight: var(--nav-item-weight-active);
+}
+
+.ripple-side-icon {
+	display: flex;
+	flex-shrink: 0;
+	color: currentColor;
+	--icon-size: var(--icon-s);
+}
+
+.ripple-side-label {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	text-align: left;
+}
+
+.ripple-side-count {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
