@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting, debounce } from "obsidian";
 import type RipplePlugin from "./main";
 import { FolderPicker } from "./modals/FolderPicker";
 import { getAI } from "./services/reflect";
@@ -41,11 +41,19 @@ export class RippleSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Journal folder")
 			.setDesc("Posts live here and nowhere else; the rest of the vault is untouched.")
-			.addText((text) =>
-				text.setValue(this.plugin.settings.journalFolder).onChange(async (value) => {
-					await this.plugin.setJournalFolder(value.trim() || DEFAULT_SETTINGS.journalFolder);
-				}),
-			)
+			.addText((text) => {
+				// Debounced: applying per keystroke would point a live store at
+				// every half-typed path.
+				const apply = debounce(
+					(value: string) =>
+						void this.plugin.setJournalFolder(
+							value.trim() || DEFAULT_SETTINGS.journalFolder,
+						),
+					600,
+					true,
+				);
+				text.setValue(this.plugin.settings.journalFolder).onChange(apply);
+			})
 			.addExtraButton((button) =>
 				button
 					.setIcon("folder-open")

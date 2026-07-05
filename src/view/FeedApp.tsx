@@ -1,9 +1,16 @@
-import { Notice } from "obsidian";
-import { KeyboardEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Keymap, Notice } from "obsidian";
+import {
+	KeyboardEvent,
+	MouseEvent,
+	useEffect,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
 import { ConfirmModal } from "../modals/ConfirmModal";
 import { groupByDay } from "../services/journal-model";
 import { JournalStore } from "../services/journal-store";
-import { createPost, deletePost, saveEdit, setHighlight } from "../services/post-io";
+import { createPost, saveEdit, setHighlight } from "../services/post-io";
 import { getAI, reflect, threadText } from "../services/reflect";
 import { HIGHLIGHT_COLOURS, HighlightColour, Thread } from "../types";
 import { usePlugin } from "./context";
@@ -35,6 +42,18 @@ export function FeedApp({ store }: { store: JournalStore }) {
 			alive = false;
 		};
 	}, []);
+
+	// Day headers and relative times drift without a clock; tick once a minute.
+	const [, setMinute] = useState(0);
+	useEffect(() => {
+		const id = window.setInterval(() => setMinute((m) => m + 1), 60_000);
+		return () => window.clearInterval(id);
+	}, []);
+
+	// A fresh filter starts reading from the top.
+	useEffect(() => {
+		rootRef.current?.closest(".ripple-feed")?.scrollTo({ top: 0 });
+	}, [snap.monthFilter, snap.tagFilter, snap.highlightFilter]);
 
 	const rootPaths = snap.threads.map((t) => t.root.path);
 
@@ -92,7 +111,7 @@ export function FeedApp({ store }: { store: JournalStore }) {
 				? "Delete this post? Its replies remain as posts of their own."
 				: "Delete this post?";
 		new ConfirmModal(plugin.app, message, "Delete", () => {
-			void deletePost(plugin.app, file).catch((err: unknown) => {
+			void plugin.app.fileManager.trashFile(file).catch((err: unknown) => {
 				console.error("Ripple: delete failed", err);
 				new Notice("Could not delete the post.");
 			});
@@ -127,9 +146,12 @@ export function FeedApp({ store }: { store: JournalStore }) {
 					abortController: abort,
 				});
 				// The file exists only once there is a final text; abort writes nothing.
+				// Folder and basename are re-read at write time: either can change
+				// (settings edit, rename) while the stream runs.
 				if (text.trim()) {
-					await createPost(plugin.app, snap.journalFolder, text, {
-						replyTo: thread.root.basename,
+					const rootFile = plugin.app.vault.getFileByPath(thread.root.path);
+					await createPost(plugin.app, store.getSnapshot().journalFolder, text, {
+						replyTo: rootFile?.basename ?? thread.root.basename,
 						ai: true,
 					});
 				}
@@ -221,10 +243,28 @@ export function FeedApp({ store }: { store: JournalStore }) {
 		}
 	};
 
+	// Rendered wikilinks get no click wiring outside a markdown view; delegate.
+	const onRootClick = (e: MouseEvent<HTMLDivElement>) => {
+		const target = e.target as HTMLElement;
+		const anchor = target.closest("a.internal-link");
+		if (!(anchor instanceof HTMLAnchorElement)) return;
+		e.preventDefault();
+		const href = anchor.getAttribute("data-href") ?? anchor.getAttribute("href");
+		if (!href) return;
+		const source = target.closest("[data-path]")?.getAttribute("data-path") ?? "";
+		void plugin.app.workspace.openLinkText(href, source, Keymap.isModEvent(e.nativeEvent));
+	};
+
 	const groups = groupByDay(snap.threads, Date.now());
 
 	return (
-		<div className="ripple-app" ref={rootRef} tabIndex={0} onKeyDown={onKeyDown}>
+		<div
+			className="ripple-app"
+			ref={rootRef}
+			tabIndex={0}
+			onKeyDown={onKeyDown}
+			onClick={onRootClick}
+		>
 			<div className="ripple-column">
 				<div ref={composerBoxRef}>
 					<Composer
@@ -256,7 +296,9 @@ export function FeedApp({ store }: { store: JournalStore }) {
 								}
 								onReplyCancel={() => setReplying(null)}
 								onSetHighlight={(colour) => applyHighlight(thread.root.path, colour)}
-								reflectEnabled={aiReady && !pending}
+								reflectEnabled={
+									(aiReady || plugin.settings.aiProviderId !== null) && !pending
+								}
 								pendingReflection={
 									pending && pending.rootPath === thread.root.path
 										? { providerName: pending.providerName, text: pending.text }

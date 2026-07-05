@@ -148,15 +148,19 @@ export class JournalStore {
 		next.months = countMonths(all);
 		next.tagEntries = countTags(this.rawPosts);
 		next.highlightCounts = countHighlights(this.rawPosts);
-		// A filter that no longer matches anything would strand the view.
-		if (next.monthFilter && !next.months.some((m) => m.key === next.monthFilter)) {
-			next.monthFilter = null;
-		}
-		if (next.tagFilter && !next.tagEntries.some((t) => t.tag === next.tagFilter)) {
-			next.tagFilter = null;
-		}
-		if (next.highlightFilter && !next.highlightCounts[next.highlightFilter]) {
-			next.highlightFilter = null;
+		// A filter that no longer matches anything would strand the view — but a
+		// missing folder (mid-typing in settings, not yet created) is not the
+		// filters' fault, so they survive until the folder exists again.
+		if (this.app.vault.getFolderByPath(this.folder)) {
+			if (next.monthFilter && !next.months.some((m) => m.key === next.monthFilter)) {
+				next.monthFilter = null;
+			}
+			if (next.tagFilter && !next.tagEntries.some((t) => t.tag === next.tagFilter)) {
+				next.tagFilter = null;
+			}
+			if (next.highlightFilter && !next.highlightCounts[next.highlightFilter]) {
+				next.highlightFilter = null;
+			}
 		}
 		let threads = all;
 		if (next.monthFilter) {

@@ -1,7 +1,7 @@
 import { Menu } from "obsidian";
 import { MouseEvent, useEffect, useState } from "react";
 import { timeLabel } from "../../services/journal-model";
-import { stripFrontmatter } from "../../services/post-io";
+import { splitFrontmatter } from "../../services/post-io";
 import { HIGHLIGHT_COLOURS, HighlightColour, Thread } from "../../types";
 import { usePlugin } from "../context";
 import { Composer } from "./Composer";
@@ -18,7 +18,7 @@ function EditBody({ path, onDone }: { path: string; onDone: (body: string | null
 		if (!file) return;
 		let alive = true;
 		void plugin.app.vault.cachedRead(file).then((text) => {
-			if (alive) setInitial(stripFrontmatter(text));
+			if (alive) setInitial(splitFrontmatter(plugin.app, file, text).body);
 		});
 		return () => {
 			alive = false;
@@ -135,6 +135,8 @@ export function PostCard({
 			}`}
 			data-path={root.path}
 			onClick={(e) => {
+				// Links inside the rendered body belong to the feed-level handler.
+				if ((e.target as HTMLElement).closest("a")) return;
 				if (e.metaKey || e.ctrlKey) onOpenPath(root.path);
 				else onSelect();
 			}}

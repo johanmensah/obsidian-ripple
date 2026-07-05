@@ -7,8 +7,25 @@ function pad(n: number): string {
 
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
 
-export function stripFrontmatter(text: string): string {
-	return text.replace(FRONTMATTER, "");
+/**
+ * Splits at the frontmatter boundary. The metadata cache decides what counts
+ * as frontmatter, so a body that merely opens with a `---` rule is never
+ * eaten; the regex is only a fallback while the cache has not indexed the
+ * file yet.
+ */
+export function splitFrontmatter(
+	app: App,
+	file: TFile,
+	text: string,
+): { head: string; body: string } {
+	const cache = app.metadataCache.getFileCache(file);
+	if (cache) {
+		const end = cache.frontmatterPosition?.end.offset;
+		if (end === undefined) return { head: "", body: text };
+		return { head: `${text.slice(0, end)}\n`, body: text.slice(end).replace(/^\r?\n/, "") };
+	}
+	const head = text.match(FRONTMATTER)?.[0] ?? "";
+	return { head, body: text.slice(head.length) };
 }
 
 /** ISO 8601 with the local offset, per the frontmatter schema. */
@@ -52,14 +69,16 @@ export async function createPost(
 	body: string,
 	opts: { replyTo?: string; ai?: boolean } = {},
 ): Promise<TFile> {
-	const now = new Date();
-	let path = postPath(folder, now);
-	// Same-second collision: bump until free.
+	// Same-second collision: bump the moment until the path is free, so the
+	// filename and the created stamp always agree.
+	let moment = new Date();
+	let path = postPath(folder, moment);
 	for (let bump = 1; app.vault.getAbstractFileByPath(path) !== null && bump < 60; bump++) {
-		path = postPath(folder, new Date(now.getTime() + bump * 1000));
+		moment = new Date(moment.getTime() + 1000);
+		path = postPath(folder, moment);
 	}
 	await ensureFolder(app, path.slice(0, path.lastIndexOf("/")));
-	const lines = ["---", `created: ${isoLocal(now)}`];
+	const lines = ["---", `created: ${isoLocal(moment)}`];
 	if (opts.replyTo) lines.push(`reply_to: "[[${opts.replyTo}]]"`);
 	if (opts.ai) lines.push("ai: true");
 	lines.push("tags: []", "---", "", body.trim(), "");
@@ -69,7 +88,7 @@ export async function createPost(
 /** Replaces the body below the frontmatter block, then stamps `updated`. */
 export async function saveEdit(app: App, file: TFile, body: string): Promise<void> {
 	await app.vault.process(file, (text) => {
-		const head = text.match(FRONTMATTER)?.[0] ?? "";
+		const { head } = splitFrontmatter(app, file, text);
 		return `${head}${body.trim()}\n`;
 	});
 	await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
@@ -86,8 +105,4 @@ export async function setHighlight(
 		if (colour) fm.highlight = colour;
 		else delete fm.highlight;
 	});
-}
-
-export async function deletePost(app: App, file: TFile): Promise<void> {
-	await app.fileManager.trashFile(file);
 }

@@ -2,7 +2,7 @@ import { waitForAI } from "@obsidian-ai-providers/sdk";
 import type { IAIProvider, IAIProvidersService } from "@obsidian-ai-providers/sdk";
 import { App } from "obsidian";
 import { Thread } from "../types";
-import { stripFrontmatter } from "./post-io";
+import { splitFrontmatter } from "./post-io";
 
 const WAIT_MS = 3000;
 
@@ -29,7 +29,8 @@ export async function getAI(): Promise<IAIProvidersService | null> {
 export async function threadText(app: App, thread: Thread): Promise<string> {
 	const read = async (path: string) => {
 		const file = app.vault.getFileByPath(path);
-		return file ? stripFrontmatter(await app.vault.cachedRead(file)).trim() : "";
+		if (!file) return "";
+		return splitFrontmatter(app, file, await app.vault.cachedRead(file)).body.trim();
 	};
 	const date = new Date(thread.root.created).toLocaleDateString("en-GB", {
 		day: "numeric",
