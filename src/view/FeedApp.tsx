@@ -15,6 +15,7 @@ export function FeedApp({ store }: { store: JournalStore }) {
 	const composerBoxRef = useRef<HTMLDivElement>(null);
 	const [cursor, setCursor] = useState<string | null>(null);
 	const [editing, setEditing] = useState<string | null>(null);
+	const [replying, setReplying] = useState<string | null>(null);
 
 	const rootPaths = snap.threads.map((t) => t.root.path);
 
@@ -41,6 +42,16 @@ export function FeedApp({ store }: { store: JournalStore }) {
 			console.error("Ripple: create post failed", err);
 			new Notice("Could not create the post.");
 		});
+	};
+
+	const submitReply = (rootPath: string, rootBasename: string, body: string) => {
+		setReplying(null);
+		void createPost(plugin.app, snap.journalFolder, body, { replyTo: rootBasename }).catch(
+			(err: unknown) => {
+				console.error("Ripple: create reply failed", err, rootPath);
+				new Notice("Could not create the reply.");
+			},
+		);
 	};
 
 	const finishEdit = (path: string, body: string | null) => {
@@ -108,6 +119,12 @@ export function FeedApp({ store }: { store: JournalStore }) {
 			case "o":
 				if (cursor) openAsNote(cursor);
 				break;
+			case "r":
+				if (cursor) {
+					e.preventDefault();
+					setReplying(cursor);
+				}
+				break;
 			case "n":
 			case "c":
 				e.preventDefault();
@@ -141,14 +158,25 @@ export function FeedApp({ store }: { store: JournalStore }) {
 								thread={thread}
 								isCursor={cursor === thread.root.path}
 								isEditing={editing === thread.root.path}
+								isReplying={replying === thread.root.path}
 								onSelect={() => setCursor(thread.root.path)}
 								onTagClick={(tag) =>
 									store.setTagFilter(snap.tagFilter === tag ? null : tag)
 								}
 								onRequestEdit={() => setEditing(thread.root.path)}
 								onEditDone={(body) => finishEdit(thread.root.path, body)}
-								onOpen={() => openAsNote(thread.root.path)}
-								onDelete={() => confirmDelete(thread.root.path, thread.replies.length)}
+								onRequestReply={() => setReplying(thread.root.path)}
+								onReplySubmit={(body) =>
+									submitReply(thread.root.path, thread.root.basename, body)
+								}
+								onReplyCancel={() => setReplying(null)}
+								onOpenPath={openAsNote}
+								onDeletePath={(path) =>
+									confirmDelete(
+										path,
+										path === thread.root.path ? thread.replies.length : 0,
+									)
+								}
 							/>
 						))}
 					</section>

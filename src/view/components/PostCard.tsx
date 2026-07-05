@@ -7,6 +7,7 @@ import { Composer } from "./Composer";
 import { Icon } from "./Icon";
 import { MarkdownPane } from "./MarkdownPane";
 import { TagChip } from "./TagChip";
+import { ThreadedReplies } from "./ThreadedReplies";
 
 function EditBody({ path, onDone }: { path: string; onDone: (body: string | null) => void }) {
 	const plugin = usePlugin();
@@ -39,33 +40,48 @@ export function PostCard({
 	thread,
 	isCursor,
 	isEditing,
+	isReplying,
 	onSelect,
 	onTagClick,
 	onRequestEdit,
 	onEditDone,
-	onOpen,
-	onDelete,
+	onRequestReply,
+	onReplySubmit,
+	onReplyCancel,
+	onOpenPath,
+	onDeletePath,
 }: {
 	thread: Thread;
 	isCursor: boolean;
 	isEditing: boolean;
+	isReplying: boolean;
 	onSelect: () => void;
 	onTagClick: (tag: string) => void;
 	onRequestEdit: () => void;
 	onEditDone: (body: string | null) => void;
-	onOpen: () => void;
-	onDelete: () => void;
+	onRequestReply: () => void;
+	onReplySubmit: (body: string) => void;
+	onReplyCancel: () => void;
+	onOpenPath: (path: string) => void;
+	onDeletePath: (path: string) => void;
 }) {
 	const { root, replies } = thread;
 
 	const showMenu = (e: MouseEvent) => {
 		e.stopPropagation();
 		const menu = new Menu();
+		menu.addItem((item) => item.setTitle("Reply").setIcon("reply").onClick(onRequestReply));
 		menu.addItem((item) => item.setTitle("Edit").setIcon("pencil").onClick(onRequestEdit));
-		menu.addItem((item) => item.setTitle("Open as note").setIcon("file-symlink").onClick(onOpen));
+		menu.addItem((item) =>
+			item.setTitle("Open as note").setIcon("file-symlink").onClick(() => onOpenPath(root.path)),
+		);
 		menu.addSeparator();
 		menu.addItem((item) =>
-			item.setTitle("Delete").setIcon("trash-2").setWarning(true).onClick(onDelete),
+			item
+				.setTitle("Delete")
+				.setIcon("trash-2")
+				.setWarning(true)
+				.onClick(() => onDeletePath(root.path)),
 		);
 		menu.showAtMouseEvent(e.nativeEvent);
 	};
@@ -75,7 +91,7 @@ export function PostCard({
 			className={`ripple-post${isCursor ? " is-cursor" : ""}`}
 			data-path={root.path}
 			onClick={(e) => {
-				if (e.metaKey || e.ctrlKey) onOpen();
+				if (e.metaKey || e.ctrlKey) onOpenPath(root.path);
 				else onSelect();
 			}}
 		>
@@ -89,11 +105,6 @@ export function PostCard({
 				{root.tags.map((tag) => (
 					<TagChip key={tag} tag={tag} onClick={onTagClick} />
 				))}
-				{replies.length > 0 && (
-					<span className="ripple-post-replies">
-						{replies.length === 1 ? "1 reply" : `${replies.length} replies`}
-					</span>
-				)}
 				<button
 					className="clickable-icon ripple-post-menu"
 					aria-label="Post actions"
@@ -102,6 +113,16 @@ export function PostCard({
 					<Icon name="more-horizontal" />
 				</button>
 			</footer>
+			{(replies.length > 0 || isReplying) && (
+				<ThreadedReplies
+					replies={replies}
+					replying={isReplying}
+					onReplySubmit={onReplySubmit}
+					onReplyCancel={onReplyCancel}
+					onOpen={onOpenPath}
+					onDelete={onDeletePath}
+				/>
+			)}
 		</article>
 	);
 }

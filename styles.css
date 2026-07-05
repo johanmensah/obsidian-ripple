@@ -128,6 +128,48 @@
 	color: hsl(var(--ripple-tag-hue), 55%, 75%);
 }
 
+/* Threads: replies indent under the root behind a thread line. */
+.ripple-thread {
+	margin-top: var(--size-4-2);
+	margin-left: var(--size-4-2);
+	padding-left: var(--size-4-4);
+	border-left: 2px solid var(--background-modifier-border);
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+}
+
+.ripple-reply-byline {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	margin-bottom: var(--size-2-2);
+}
+
+.ripple-reply.is-ai {
+	padding-left: var(--size-4-3);
+	border-left: 2px solid var(--interactive-accent);
+}
+
+.ripple-reply-ai {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	color: var(--text-muted);
+	font-weight: var(--font-semibold);
+}
+
+.ripple-reply-ai-icon {
+	display: flex;
+	--icon-size: var(--icon-xs);
+}
+
+.ripple-reply .ripple-post-body {
+	font-size: var(--font-ui-medium);
+}
+
 /* Left-sidebar navigation, styled to match Obsidian's own. */
 .ripple-nav {
 	padding: var(--size-2-3) var(--size-2-2);
