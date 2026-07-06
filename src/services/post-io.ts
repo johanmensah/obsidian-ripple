@@ -97,14 +97,15 @@ export function sanitiseName(raw: string): string {
 		.trim();
 }
 
-/** A naming suggestion from the first words of the body. */
+/** A naming suggestion: the first sentence of the body, capped at 8 words. */
 export function nameSuggestion(body: string): string {
 	const firstLine = body
 		.split("\n")
 		.map((line) => line.replace(/^[#>\-*\s]+/u, "").trim())
 		.find((line) => line.length > 0);
 	if (!firstLine) return "";
-	const words = firstLine.split(" ").slice(0, 8).join(" ");
+	const sentence = firstLine.split(/(?<=[.!?])\s/u)[0] ?? firstLine;
+	const words = sentence.split(" ").slice(0, 8).join(" ");
 	return sanitiseName(words.replace(/[.,;!?]+$/u, ""));
 }
 
