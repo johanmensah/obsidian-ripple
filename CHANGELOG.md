@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.1
+
+- Release assets carry GitHub build-provenance attestations; releases ship with notes.
+
+## 0.1.0
 
 - Scaffold from the Inspire harness: esbuild, strict TypeScript, React-in-ItemView, dev vault workflow.
 - Journal store over one linked folder and a read-only feed with day grouping.
