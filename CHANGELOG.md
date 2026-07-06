@@ -13,3 +13,4 @@
 - Full-bleed pane on desktop, active-filter bar with clear chips, and a new post command.
 - Pile-inspired anatomy: ball-and-thread-line rail (highlight = ball colour, dotted line and pulse for AI), meta above the body, hover reply/reflect actions, card composer.
 - Name note action (menu and `t`): opt-in human filenames per post, first-words suggestion, thread links preserved through the rename.
+- Timeline scrubber: a dot per month on the feed's edge; click to glide, active month tracks the scroll.

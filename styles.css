@@ -171,6 +171,70 @@ body {
 	border-radius: 0;
 }
 
+/* Timeline scrubber: a dot per month pinned to the pane's right edge. */
+.ripple-scrubber-anchor {
+	position: sticky;
+	top: 0;
+	height: 0;
+	z-index: 3;
+}
+
+.ripple-scrubber {
+	position: absolute;
+	right: var(--size-4-3);
+	top: 15vh;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--size-4-3);
+	max-height: 60vh;
+	opacity: 0.5;
+	transition: opacity 120ms ease-in-out;
+}
+
+.ripple-scrubber:hover {
+	opacity: 1;
+}
+
+.ripple-scrubber-dot {
+	position: relative;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--ripple-rail);
+	cursor: var(--cursor);
+	transition:
+		transform 120ms ease-in-out,
+		background 120ms ease-in-out;
+}
+
+.ripple-scrubber-dot:hover {
+	transform: scale(1.4);
+}
+
+.ripple-scrubber-dot.is-active {
+	background: var(--interactive-accent);
+	transform: scale(1.2);
+}
+
+.ripple-scrubber-dot:hover::after {
+	content: attr(data-label);
+	position: absolute;
+	right: calc(100% + var(--size-4-2));
+	top: 50%;
+	transform: translateY(-50%);
+	white-space: nowrap;
+	padding: var(--size-2-1) var(--size-4-2);
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+body.is-mobile .ripple-scrubber-anchor {
+	display: none;
+}
+
 /* Posts: whitespace and the rail carry the structure; no borders. */
 .ripple-post {
 	padding: var(--size-4-2) var(--size-4-3);

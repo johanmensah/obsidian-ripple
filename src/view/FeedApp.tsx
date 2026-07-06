@@ -9,7 +9,7 @@ import {
 } from "react";
 import { ConfirmModal } from "../modals/ConfirmModal";
 import { NameModal } from "../modals/NameModal";
-import { groupByDay } from "../services/journal-model";
+import { groupByDay, monthKeyOf } from "../services/journal-model";
 import { Icon } from "./components/Icon";
 import { JournalStore } from "../services/journal-store";
 import {
@@ -88,6 +88,42 @@ export function FeedApp({ store }: { store: JournalStore }) {
 	useEffect(() => {
 		rootRef.current?.closest(".ripple-feed")?.scrollTo({ top: 0 });
 	}, [snap.monthFilter, snap.tagFilter, snap.highlightFilter]);
+
+	// The scrubber tracks whichever month owns the first post in view.
+	const [scrollMonth, setScrollMonth] = useState<string | null>(null);
+	useEffect(() => {
+		const container = rootRef.current?.closest(".ripple-feed");
+		if (!(container instanceof HTMLElement)) return;
+		let ticking = false;
+		const measure = () => {
+			ticking = false;
+			const top = container.getBoundingClientRect().top;
+			for (const el of container.querySelectorAll("article[data-path]")) {
+				if (el.getBoundingClientRect().bottom < top + 80) continue;
+				const path = el.getAttribute("data-path");
+				const thread = store.getSnapshot().threads.find((t) => t.root.path === path);
+				setScrollMonth(thread ? monthKeyOf(thread.root.created) : null);
+				return;
+			}
+			setScrollMonth(null);
+		};
+		const onScroll = () => {
+			if (ticking) return;
+			ticking = true;
+			window.requestAnimationFrame(measure);
+		};
+		container.addEventListener("scroll", onScroll, { passive: true });
+		measure();
+		return () => container.removeEventListener("scroll", onScroll);
+	}, [store]);
+
+	const jumpToMonth = (key: string) => {
+		const thread = snap.threads.find((t) => monthKeyOf(t.root.created) === key);
+		if (!thread) return;
+		rootRef.current
+			?.querySelector(`[data-path="${CSS.escape(thread.root.path)}"]`)
+			?.scrollIntoView({ behavior: "smooth", block: "start" });
+	};
 
 	const rootPaths = snap.threads.map((t) => t.root.path);
 
@@ -340,6 +376,12 @@ export function FeedApp({ store }: { store: JournalStore }) {
 
 	const groups = groupByDay(snap.threads, Date.now());
 
+	const showScrubber =
+		snap.months.length > 1 &&
+		snap.monthFilter === null &&
+		snap.tagFilter === null &&
+		snap.highlightFilter === null;
+
 	return (
 		<div
 			className="ripple-app"
@@ -348,6 +390,30 @@ export function FeedApp({ store }: { store: JournalStore }) {
 			onKeyDown={onKeyDown}
 			onClick={onRootClick}
 		>
+			{showScrubber && (
+				<div className="ripple-scrubber-anchor">
+					<div className="ripple-scrubber">
+						{snap.months.map((entry) => (
+							<span
+								key={entry.key}
+								role="button"
+								tabIndex={-1}
+								aria-label={monthName(entry.key)}
+								data-label={monthName(entry.key)}
+								className={`ripple-scrubber-dot${
+									(scrollMonth ?? snap.months[0]?.key) === entry.key
+										? " is-active"
+										: ""
+								}`}
+								onClick={(e) => {
+									e.stopPropagation();
+									jumpToMonth(entry.key);
+								}}
+							/>
+						))}
+					</div>
+				</div>
+			)}
 			<div className="ripple-column">
 				{(snap.monthFilter !== null ||
 					snap.tagFilter !== null ||
