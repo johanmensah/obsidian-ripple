@@ -104,7 +104,9 @@ export function nameSuggestion(body: string): string {
 		.map((line) => line.replace(/^[#>\-*\s]+/u, "").trim())
 		.find((line) => line.length > 0);
 	if (!firstLine) return "";
-	const sentence = firstLine.split(/(?<=[.!?])\s/u)[0] ?? firstLine;
+	// No lookbehind: unsupported on iOS WebKit before 16.4.
+	const end = /[.!?]\s/u.exec(firstLine);
+	const sentence = end ? firstLine.slice(0, end.index + 1) : firstLine;
 	const words = sentence.split(" ").slice(0, 8).join(" ");
 	return sanitiseName(words.replace(/[.,;!?]+$/u, ""));
 }
