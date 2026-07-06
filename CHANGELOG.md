@@ -9,3 +9,5 @@
 - Threaded replies wired with reply_to wikilinks.
 - Six-colour highlights with nav filtering.
 - AI reflections as threaded replies via the AI Providers plugin, streaming with stop.
+- Dev vault receives build copies instead of a recursive repo symlink.
+- Full-bleed pane on desktop, active-filter bar with clear chips, and a new post command.

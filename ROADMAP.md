@@ -11,3 +11,5 @@ Deferred by design in SPEC.md; do not build ahead of a milestone the user has as
 - **Attachments UI**: paste/drag images into the composer with an attachments-folder setting.
 - **Multiple journals**: several linked folders with a switcher, as Pile had piles.
 - **Embeddings/retrieval**: AI Providers exposes `embed` and retrieval; relevant only once chat exists.
+- **Timeline scrubber**: Pile's sidebar has a compact date scrubber; Ripple's month rows cover the need for now.
+- **Accent themes**: Pile ships accent colour themes; Obsidian theming largely covers this.
