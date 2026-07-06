@@ -1,5 +1,7 @@
 # Ripple
 
+![The Ripple feed](docs/feed.png)
+
 A micro-journal inside your Obsidian vault, in the spirit of [Pile](https://github.com/UdaraJay/pile) by Udara Jay: one folder of plain Markdown posts, a feed with a composer, threaded replies, highlights, and AI reflections. Local-first; the journal folder remains the only source of truth.
 
 - **One linked folder** (default `Ripple/`, changeable in settings): posts land as `YYYY/MM/YYYYMMDD-HHmmss.md` with a small frontmatter block. Files dropped in by any other route appear in the feed — the folder is the API.

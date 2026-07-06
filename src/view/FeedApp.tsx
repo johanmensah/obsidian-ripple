@@ -64,6 +64,11 @@ export function FeedApp({ store }: { store: JournalStore }) {
 		};
 	}, []);
 
+	// Keyboard navigation works from the moment the journal opens.
+	useEffect(() => {
+		rootRef.current?.focus({ preventScroll: true });
+	}, []);
+
 	// Day headers and relative times drift without a clock; tick once a minute.
 	const [, setMinute] = useState(0);
 	useEffect(() => {
