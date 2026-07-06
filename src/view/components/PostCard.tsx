@@ -77,6 +77,7 @@ export function PostCard({
 	onDeletePath: (path: string) => void;
 }) {
 	const { root, replies } = thread;
+	const hasThread = replies.length > 0 || isReplying || pendingReflection !== null;
 
 	const showMenu = (e: MouseEvent) => {
 		e.stopPropagation();
@@ -141,25 +142,49 @@ export function PostCard({
 				else onSelect();
 			}}
 		>
-			{isEditing ? (
-				<EditBody path={root.path} onDone={onEditDone} />
-			) : (
-				<MarkdownPane path={root.path} mtime={root.mtime} />
-			)}
-			<footer className="ripple-post-meta">
-				<span className="ripple-post-time">{timeLabel(root.created, Date.now())}</span>
-				{root.tags.map((tag) => (
-					<TagChip key={tag} tag={tag} onClick={onTagClick} />
-				))}
-				<button
-					className="clickable-icon ripple-post-menu"
-					aria-label="Post actions"
-					onClick={showMenu}
-				>
-					<Icon name="more-horizontal" />
-				</button>
-			</footer>
-			{(replies.length > 0 || isReplying || pendingReflection) && (
+			<div className="ripple-row">
+				<div className="ripple-rail">
+					<span className="ripple-ball" />
+					{hasThread && <div className="ripple-line" />}
+				</div>
+				<div className="ripple-main">
+					<header className="ripple-post-meta">
+						<span className="ripple-post-time">{timeLabel(root.created, Date.now())}</span>
+						{root.tags.map((tag) => (
+							<TagChip key={tag} tag={tag} onClick={onTagClick} />
+						))}
+						<button
+							className="clickable-icon ripple-post-menu"
+							aria-label="Post actions"
+							onClick={showMenu}
+						>
+							<Icon name="more-horizontal" />
+						</button>
+					</header>
+					{isEditing ? (
+						<EditBody path={root.path} onDone={onEditDone} />
+					) : (
+						<MarkdownPane path={root.path} mtime={root.mtime} />
+					)}
+					{!isEditing && (
+						<div className="ripple-post-actions">
+							<button className="ripple-action" onClick={onRequestReply}>
+								<Icon name="reply" className="ripple-action-icon" />
+								Reply
+							</button>
+							<button
+								className="ripple-action"
+								disabled={!reflectEnabled}
+								onClick={onRequestReflect}
+							>
+								<Icon name="sparkles" className="ripple-action-icon" />
+								Reflect
+							</button>
+						</div>
+					)}
+				</div>
+			</div>
+			{hasThread && (
 				<ThreadedReplies
 					replies={replies}
 					replying={isReplying}

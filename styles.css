@@ -1,4 +1,7 @@
-/* Ripple — all classes are prefixed ripple-; state modifiers use is-. */
+/* Ripple — all classes are prefixed ripple-; state modifiers use is-.
+   The look is Ripple's own take on Pile's anatomy: a rail of balls and
+   thread lines carries the structure, whitespace does the separating, and
+   every colour comes from Obsidian's theme variables. */
 
 /* Highlight palette over Obsidian's theme colours (light/dark safe). */
 body {
@@ -8,6 +11,26 @@ body {
 	--ripple-hl-lime: var(--color-green);
 	--ripple-hl-violet: var(--color-purple);
 	--ripple-hl-slate: var(--text-muted);
+	--ripple-rail: var(--background-modifier-border);
+}
+
+.ripple-hl-sky {
+	--ripple-hl: var(--ripple-hl-sky);
+}
+.ripple-hl-amber {
+	--ripple-hl: var(--ripple-hl-amber);
+}
+.ripple-hl-rose {
+	--ripple-hl: var(--ripple-hl-rose);
+}
+.ripple-hl-lime {
+	--ripple-hl: var(--ripple-hl-lime);
+}
+.ripple-hl-violet {
+	--ripple-hl: var(--ripple-hl-violet);
+}
+.ripple-hl-slate {
+	--ripple-hl: var(--ripple-hl-slate);
 }
 
 /* The feed owns its pane; Obsidian is the window frame only. */
@@ -19,6 +42,7 @@ body {
 
 .ripple-app {
 	min-height: 100%;
+	outline: none;
 }
 
 .ripple-column {
@@ -41,226 +65,11 @@ body {
 	margin: 0;
 	padding: var(--size-4-2) 0;
 	background: var(--background-primary);
-	font-size: var(--font-ui-small);
+	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-semibold);
-	color: var(--text-muted);
-}
-
-.ripple-post {
-	padding: var(--size-4-4) 0;
-	border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.ripple-post-body > p:first-child {
-	margin-top: 0;
-}
-
-.ripple-post-body > p:last-child {
-	margin-bottom: 0;
-}
-
-.ripple-post-meta {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
-	margin-top: var(--size-4-2);
-	font-size: var(--font-ui-smaller);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
 	color: var(--text-faint);
-}
-
-.ripple-app {
-	outline: none;
-}
-
-.ripple-composer textarea {
-	width: 100%;
-	resize: none;
-	overflow: hidden;
-	min-height: calc(var(--font-text-size) * 2.4);
-	padding: var(--size-4-3);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
-	background: var(--background-primary);
-	font-family: inherit;
-	font-size: var(--font-text-size);
-	line-height: var(--line-height-normal);
-}
-
-.ripple-composer textarea:focus {
-	border-color: var(--background-modifier-border-focus);
-	box-shadow: none;
-}
-
-.ripple-composer-actions {
-	display: flex;
-	justify-content: flex-end;
-	gap: var(--size-4-2);
-	margin-top: var(--size-4-1);
-	min-height: var(--size-4-6);
-}
-
-.ripple-composer-actions button {
-	visibility: hidden;
-}
-
-.ripple-composer:focus-within .ripple-composer-actions button,
-.ripple-composer-actions button:not(:disabled) {
-	visibility: visible;
-}
-
-.ripple-post.is-cursor {
-	box-shadow: inset 2px 0 0 var(--interactive-accent);
-	padding-left: var(--size-4-3);
-	margin-left: calc(-1 * var(--size-4-3));
-}
-
-.ripple-post-menu {
-	margin-left: auto;
-	opacity: 0;
-}
-
-.ripple-post:hover .ripple-post-menu,
-.ripple-post.is-cursor .ripple-post-menu,
-.ripple-post-menu:focus-visible {
-	opacity: 1;
-}
-
-.ripple-tag-chip {
-	cursor: var(--cursor);
-	padding: 0 var(--size-4-2);
-	border-radius: var(--radius-s);
-	font-size: var(--font-ui-smaller);
-	background: hsla(var(--ripple-tag-hue), 45%, 50%, 0.14);
-	color: hsl(var(--ripple-tag-hue), 45%, 38%);
-}
-
-.theme-dark .ripple-tag-chip {
-	color: hsl(var(--ripple-tag-hue), 55%, 75%);
-}
-
-.ripple-hl-sky {
-	--ripple-hl: var(--ripple-hl-sky);
-}
-.ripple-hl-amber {
-	--ripple-hl: var(--ripple-hl-amber);
-}
-.ripple-hl-rose {
-	--ripple-hl: var(--ripple-hl-rose);
-}
-.ripple-hl-lime {
-	--ripple-hl: var(--ripple-hl-lime);
-}
-.ripple-hl-violet {
-	--ripple-hl: var(--ripple-hl-violet);
-}
-.ripple-hl-slate {
-	--ripple-hl: var(--ripple-hl-slate);
-}
-
-.ripple-post[class*="ripple-hl-"] {
-	border-left: 3px solid var(--ripple-hl);
-	padding-left: var(--size-4-3);
-	margin-left: calc(-1 * var(--size-4-3));
-}
-
-.ripple-side-hl-sky .ripple-side-icon {
-	color: var(--ripple-hl-sky);
-}
-.ripple-side-hl-amber .ripple-side-icon {
-	color: var(--ripple-hl-amber);
-}
-.ripple-side-hl-rose .ripple-side-icon {
-	color: var(--ripple-hl-rose);
-}
-.ripple-side-hl-lime .ripple-side-icon {
-	color: var(--ripple-hl-lime);
-}
-.ripple-side-hl-violet .ripple-side-icon {
-	color: var(--ripple-hl-violet);
-}
-.ripple-side-hl-slate .ripple-side-icon {
-	color: var(--ripple-hl-slate);
-}
-
-/* Threads: replies indent under the root behind a thread line. */
-.ripple-thread {
-	margin-top: var(--size-4-2);
-	margin-left: var(--size-4-2);
-	padding-left: var(--size-4-4);
-	border-left: 2px solid var(--background-modifier-border);
-	display: flex;
-	flex-direction: column;
-	gap: var(--size-4-3);
-}
-
-.ripple-reply-byline {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
-	font-size: var(--font-ui-smaller);
-	color: var(--text-faint);
-	margin-bottom: var(--size-2-2);
-}
-
-.ripple-reply.is-ai {
-	padding-left: var(--size-4-3);
-	border-left: 2px solid var(--interactive-accent);
-}
-
-.ripple-reply-ai {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--size-2-1);
-	color: var(--text-muted);
-	font-weight: var(--font-semibold);
-}
-
-.ripple-reply-ai-icon {
-	display: flex;
-	--icon-size: var(--icon-xs);
-}
-
-.ripple-reply .ripple-post-body {
-	font-size: var(--font-ui-medium);
-}
-
-.ripple-pending-text {
-	white-space: pre-wrap;
-	color: var(--text-muted);
-}
-
-.ripple-pending-stop {
-	margin-left: auto;
-	--icon-size: var(--icon-xs);
-}
-
-/* A pane holding only Ripple drops its tab chrome — the normal top bar or
-   the stacked-tab spine — and Ripple's view header. Any second tab in the
-   pane brings the bar straight back. Desktop only: the mobile header carries
-   the navigation drawers. */
-body:not(.is-mobile)
-	.workspace-tabs:has(.workspace-tab-header[data-type="ripple-feed"]):not(
-		:has(.workspace-tab-header:not([data-type="ripple-feed"]))
-	)
-	.workspace-tab-header-container,
-body:not(.is-mobile)
-	.workspace-tabs:has(.workspace-tab-header[data-type="ripple-feed"]):not(
-		:has(.workspace-tab-header:not([data-type="ripple-feed"]))
-	)
-	.workspace-tab-container
-	> .workspace-tab-header {
-	display: none;
-}
-
-body:not(.is-mobile) .workspace-leaf-content[data-type="ripple-feed"] > .view-header {
-	display: none;
-}
-
-/* Core sizes view-content as 100% minus the header and pads it; both must be
-   undone here (the same per-view escape hatch core uses for [data-type=sync]). */
-body:not(.is-mobile) .workspace-leaf-content[data-type="ripple-feed"] > .view-content {
-	height: 100%;
-	padding: 0;
 }
 
 /* Active-filter bar: the feed always says why it is not showing everything. */
@@ -286,6 +95,277 @@ body:not(.is-mobile) .workspace-leaf-content[data-type="ripple-feed"] > .view-co
 .ripple-filter-chip .ripple-filter-x {
 	display: flex;
 	--icon-size: var(--icon-xs);
+}
+
+/* Rows: rail on the left, content on the right — Pile's two-column post. */
+.ripple-row {
+	display: flex;
+	gap: var(--size-4-3);
+}
+
+.ripple-rail {
+	width: 20px;
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.ripple-ball {
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+	margin-top: 6px;
+	border-radius: 50%;
+	background: var(--ripple-hl, var(--ripple-rail));
+	transition:
+		transform 120ms ease-in-out,
+		box-shadow 120ms ease-in-out;
+}
+
+.ripple-ball.is-small {
+	width: 10px;
+	height: 10px;
+	margin-top: 5px;
+}
+
+.ripple-ball.is-ai {
+	background: var(--interactive-accent);
+}
+
+.ripple-ball.is-hollow {
+	background: transparent;
+	border: 2px solid var(--ripple-rail);
+}
+
+.ripple-ball.is-pulse {
+	animation: ripple-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ripple-pulse {
+	0%,
+	100% {
+		transform: scale(0.8);
+	}
+	50% {
+		transform: scale(1);
+	}
+}
+
+.ripple-line {
+	width: 2px;
+	flex: 1 1 auto;
+	margin-top: var(--size-2-1);
+	border-radius: 1px;
+	background: var(--ripple-rail);
+}
+
+.ripple-line.is-up {
+	flex: 0 0 var(--size-4-2);
+	margin: 0 0 var(--size-2-1);
+}
+
+.ripple-line.is-dotted {
+	background: none;
+	border-right: 2px dotted var(--ripple-rail);
+	border-radius: 0;
+}
+
+/* Posts: whitespace and the rail carry the structure; no borders. */
+.ripple-post {
+	padding: var(--size-4-2) var(--size-4-3);
+	margin: 0 calc(-1 * var(--size-4-3));
+	border-radius: var(--radius-m);
+	transition: background 120ms ease-in-out;
+}
+
+.ripple-post:hover {
+	background: var(--background-modifier-hover);
+}
+
+.ripple-post.is-cursor {
+	background: var(--background-modifier-hover);
+}
+
+.ripple-post.is-cursor .ripple-ball {
+	box-shadow: 0 0 0 3px hsla(var(--interactive-accent-hsl), 0.25);
+}
+
+.ripple-main {
+	flex: 1;
+	min-width: 0;
+	padding-bottom: var(--size-4-3);
+}
+
+.ripple-post-meta,
+.ripple-reply-byline {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin-bottom: var(--size-2-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+.ripple-post-body > p:first-child {
+	margin-top: 0;
+}
+
+.ripple-post-body > p:last-child {
+	margin-bottom: 0;
+}
+
+/* Hover actions, Pile-style: reply and reflect surface on the post itself. */
+.ripple-post-actions {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-1);
+	height: 28px;
+	margin-top: var(--size-2-2);
+	opacity: 0;
+	transition: opacity 120ms ease-in-out;
+}
+
+.ripple-post:hover .ripple-post-actions,
+.ripple-post.is-cursor .ripple-post-actions,
+body.is-mobile .ripple-post-actions {
+	opacity: 1;
+}
+
+.ripple-app button.ripple-action {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	height: auto;
+	padding: 2px var(--size-4-2);
+	border: none;
+	background: none;
+	box-shadow: none;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	cursor: var(--cursor);
+}
+
+.ripple-app button.ripple-action:hover:not(:disabled) {
+	color: var(--text-normal);
+	background: var(--background-modifier-active-hover);
+	border-radius: var(--radius-s);
+}
+
+.ripple-app button.ripple-action:disabled {
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+.ripple-action-icon {
+	display: flex;
+	--icon-size: var(--icon-xs);
+}
+
+.ripple-post-menu {
+	margin-left: auto;
+	opacity: 0;
+}
+
+.ripple-post:hover .ripple-post-menu,
+.ripple-post.is-cursor .ripple-post-menu,
+.ripple-post-menu:focus-visible,
+body.is-mobile .ripple-post-menu {
+	opacity: 1;
+}
+
+/* Replies live on the same rail; the AI's thread line is dotted, as in Pile. */
+.ripple-reply .ripple-post-body {
+	font-size: var(--font-ui-medium);
+}
+
+.ripple-reply-ai {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	color: var(--text-muted);
+	font-weight: var(--font-semibold);
+}
+
+.ripple-reply-ai-icon {
+	display: flex;
+	--icon-size: var(--icon-xs);
+}
+
+.ripple-pending-text {
+	white-space: pre-wrap;
+	color: var(--text-muted);
+}
+
+.ripple-pending-stop {
+	margin-left: auto;
+	--icon-size: var(--icon-xs);
+}
+
+/* Composer: a soft card, quiet until it has focus. */
+.ripple-composer {
+	padding: var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-l);
+	background: var(--background-primary);
+	transition: box-shadow 120ms ease-in-out;
+}
+
+.ripple-column > div > .ripple-composer {
+	margin-bottom: var(--size-4-4);
+}
+
+.ripple-composer:focus-within {
+	border-color: var(--background-modifier-border-focus);
+	box-shadow: var(--shadow-s);
+}
+
+.ripple-composer textarea {
+	width: 100%;
+	resize: none;
+	overflow: hidden;
+	min-height: calc(var(--font-text-size) * 2.4);
+	padding: 0;
+	border: none;
+	background: transparent;
+	font-family: inherit;
+	font-size: var(--font-text-size);
+	line-height: var(--line-height-normal);
+}
+
+.ripple-composer textarea:focus {
+	border: none;
+	box-shadow: none;
+	outline: none;
+}
+
+.ripple-composer-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+	min-height: var(--size-4-6);
+}
+
+.ripple-composer-actions button {
+	visibility: hidden;
+}
+
+.ripple-composer:focus-within .ripple-composer-actions button,
+.ripple-composer-actions button:not(:disabled) {
+	visibility: visible;
+}
+
+.ripple-tag-chip {
+	cursor: var(--cursor);
+	padding: 0 var(--size-4-2);
+	border-radius: var(--radius-s);
+	font-size: var(--font-ui-smaller);
+	background: hsla(var(--ripple-tag-hue), 45%, 50%, 0.14);
+	color: hsl(var(--ripple-tag-hue), 45%, 38%);
+}
+
+.theme-dark .ripple-tag-chip {
+	color: hsl(var(--ripple-tag-hue), 55%, 75%);
 }
 
 /* Left-sidebar navigation, styled to match Obsidian's own. */
@@ -361,4 +441,52 @@ body:not(.is-mobile) .workspace-leaf-content[data-type="ripple-feed"] > .view-co
 .ripple-side-count {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-faint);
+}
+
+.ripple-side-hl-sky .ripple-side-icon {
+	color: var(--ripple-hl-sky);
+}
+.ripple-side-hl-amber .ripple-side-icon {
+	color: var(--ripple-hl-amber);
+}
+.ripple-side-hl-rose .ripple-side-icon {
+	color: var(--ripple-hl-rose);
+}
+.ripple-side-hl-lime .ripple-side-icon {
+	color: var(--ripple-hl-lime);
+}
+.ripple-side-hl-violet .ripple-side-icon {
+	color: var(--ripple-hl-violet);
+}
+.ripple-side-hl-slate .ripple-side-icon {
+	color: var(--ripple-hl-slate);
+}
+
+/* A pane holding only Ripple drops its tab chrome — the normal top bar or
+   the stacked-tab spine — and Ripple's view header. Any second tab in the
+   pane brings the bar straight back. Desktop only: the mobile header carries
+   the navigation drawers. */
+body:not(.is-mobile)
+	.workspace-tabs:has(.workspace-tab-header[data-type="ripple-feed"]):not(
+		:has(.workspace-tab-header:not([data-type="ripple-feed"]))
+	)
+	.workspace-tab-header-container,
+body:not(.is-mobile)
+	.workspace-tabs:has(.workspace-tab-header[data-type="ripple-feed"]):not(
+		:has(.workspace-tab-header:not([data-type="ripple-feed"]))
+	)
+	.workspace-tab-container
+	> .workspace-tab-header {
+	display: none;
+}
+
+body:not(.is-mobile) .workspace-leaf-content[data-type="ripple-feed"] > .view-header {
+	display: none;
+}
+
+/* Core sizes view-content as 100% minus the header and pads it; both must be
+   undone here (the same per-view escape hatch core uses for [data-type=sync]). */
+body:not(.is-mobile) .workspace-leaf-content[data-type="ripple-feed"] > .view-content {
+	height: 100%;
+	padding: 0;
 }
