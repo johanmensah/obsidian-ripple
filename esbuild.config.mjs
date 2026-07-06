@@ -1,4 +1,5 @@
 import esbuild from "esbuild";
+import { copyFile, mkdir } from "node:fs/promises";
 import process from "process";
 import builtins from "builtin-modules";
 
@@ -9,6 +10,22 @@ Source: https://github.com/johanmensah/ripple
 `;
 
 const prod = process.argv[2] === "production";
+
+// The dev vault gets copies of the built artefacts, never a symlink to the
+// repo: the repo contains the dev vault, so a symlink recurses forever.
+const vaultPluginDir = "dev-vault/.obsidian/plugins/ripple";
+const copyToVault = {
+	name: "copy-to-vault",
+	setup(build) {
+		build.onEnd(async (result) => {
+			if (result.errors.length > 0) return;
+			await mkdir(vaultPluginDir, { recursive: true });
+			for (const file of ["main.js", "manifest.json", "styles.css"]) {
+				await copyFile(file, `${vaultPluginDir}/${file}`).catch(() => undefined);
+			}
+		});
+	},
+};
 
 const context = await esbuild.context({
 	banner: { js: banner },
@@ -41,6 +58,7 @@ const context = await esbuild.context({
 		"process.env.NODE_ENV": prod ? '"production"' : '"development"',
 	},
 	minify: prod,
+	plugins: [copyToVault],
 });
 
 if (prod) {

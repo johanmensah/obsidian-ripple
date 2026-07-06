@@ -7,10 +7,24 @@ ROOT="$PWD"
 VAULT="$ROOT/dev-vault"
 JOURNAL="$VAULT/Ripple"
 
+PLUGIN="$VAULT/.obsidian/plugins/ripple"
+
 mkdir -p "$VAULT/.obsidian/plugins" \
 	"$JOURNAL/2026/04" "$JOURNAL/2026/05" "$JOURNAL/2026/06" "$JOURNAL/2026/07"
 
-ln -sfn "$ROOT" "$VAULT/.obsidian/plugins/ripple"
+# Copies, never a symlink: the repo contains the dev vault, so linking the
+# repo in recurses forever. The build's copy-to-vault step keeps these fresh.
+[ -L "$PLUGIN" ] && rm "$PLUGIN"
+mkdir -p "$PLUGIN"
+for f in main.js manifest.json styles.css; do
+	[ -f "$ROOT/$f" ] && cp "$ROOT/$f" "$PLUGIN/$f"
+done
+[ -f "$PLUGIN/data.json" ] || cat > "$PLUGIN/data.json" <<'EOF'
+{
+	"journalFolder": "Ripple",
+	"aiProviderId": "ollama-local"
+}
+EOF
 [ -f "$VAULT/.obsidian/community-plugins.json" ] || printf '["ripple"]' > "$VAULT/.obsidian/community-plugins.json"
 [ -f "$VAULT/.obsidian/app.json" ] || printf '{}' > "$VAULT/.obsidian/app.json"
 
@@ -123,4 +137,4 @@ created: 2026-04-01T12:00:00+01:00
 Starting a journal again, attempt number who knows. Keeping entries small this time; that is the whole point.
 EOF
 
-echo "Seeded $(find "$JOURNAL" -name '*.md' | wc -l | tr -d ' ') posts into $JOURNAL and linked the plugin at .obsidian/plugins/ripple"
+echo "Seeded $(find "$JOURNAL" -name '*.md' | wc -l | tr -d ' ') posts into $JOURNAL and copied the plugin into .obsidian/plugins/ripple"
