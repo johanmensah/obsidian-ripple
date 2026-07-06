@@ -11,5 +11,6 @@ Deferred by design in SPEC.md; do not build ahead of a milestone the user has as
 - **Attachments UI**: paste/drag images into the composer with an attachments-folder setting.
 - **Multiple journals**: several linked folders with a switcher, as Pile had piles.
 - **Embeddings/retrieval**: AI Providers exposes `embed` and retrieval; relevant only once chat exists.
+- **Readable filenames (id/label split)**: only if timestamp names pinch in real use. Design agreed: an `id` property carries identity (timestamp string, written at creation), filenames become first-words labels, `reply_to` stays a wikilink for graph/backlinks with id as the authoritative fallback. Old stamp-named posts resolve forever; no migration required. On top of that, optional AI titling: create instantly with the first-words name, one background rename when the model's title arrives, opt-in only (it sends every post to the provider, unlike reflect's explicit sends).
 - **Timeline scrubber**: Pile's sidebar has a compact date scrubber; Ripple's month rows cover the need for now.
 - **Accent themes**: Pile ships accent colour themes; Obsidian theming largely covers this.

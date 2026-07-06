@@ -81,7 +81,7 @@ export async function createPost(
 	const lines = ["---", `created: ${isoLocal(moment)}`];
 	if (opts.replyTo) lines.push(`reply_to: "[[${opts.replyTo}]]"`);
 	if (opts.ai) lines.push("ai: true");
-	lines.push("tags: []", "---", "", body.trim(), "");
+	lines.push("---", "", body.trim(), "");
 	return app.vault.create(path, lines.join("\n"));
 }
 
