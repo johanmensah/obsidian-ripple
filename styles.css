@@ -415,7 +415,7 @@ body.is-mobile .ripple-post-menu {
 }
 
 .ripple-composer:focus-within .ripple-composer-actions,
-.ripple-composer:has(.ripple-composer-actions button:not(:disabled)) .ripple-composer-actions {
+.ripple-composer.is-armed .ripple-composer-actions {
 	max-height: var(--size-4-8);
 	margin-top: var(--size-2-2);
 }
@@ -597,7 +597,9 @@ body.is-mobile .ripple-post-menu {
 /* A pane holding only Ripple drops its tab chrome — the normal top bar or
    the stacked-tab spine — and Ripple's view header. Any second tab in the
    pane brings the bar straight back. Desktop only: the mobile header carries
-   the navigation drawers. */
+   the navigation drawers. :has is kept deliberately: the only alternative is
+   JS that watches layout changes and stamps classes onto core workspace DOM,
+   which is more fragile than a selector scoped to .workspace-tabs. */
 body:not(.is-mobile)
 	.workspace-tabs:has(.workspace-tab-header[data-type="ripple-feed"]):not(
 		:has(.workspace-tab-header:not([data-type="ripple-feed"]))

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Node's own module list replaces the builtin-modules dependency; the composer's action row no longer needs :has.
+
 ## 0.1.1
 
 - Release assets carry GitHub build-provenance attestations; releases ship with notes.

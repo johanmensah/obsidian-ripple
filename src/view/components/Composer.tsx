@@ -47,7 +47,7 @@ export function Composer({
 	};
 
 	return (
-		<div className="ripple-composer">
+		<div className={value.trim() ? "ripple-composer is-armed" : "ripple-composer"}>
 			<textarea
 				ref={ref}
 				rows={1}
