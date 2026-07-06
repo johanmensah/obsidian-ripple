@@ -1,6 +1,6 @@
 {
 	"name": "ripple",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "A micro-journal over one vault folder: a feed of posts, threaded replies, and AI reflections.",
 	"type": "module",
 	"main": "main.js",

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.2
 
 - Node's own module list replaces the builtin-modules dependency; the composer's action row no longer needs :has.
 
