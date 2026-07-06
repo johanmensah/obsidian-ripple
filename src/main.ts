@@ -133,6 +133,7 @@ export default class RipplePlugin extends Plugin {
 		// navigator; reveal also expands a collapsed sidebar.
 		await workspace.ensureSideLeaf(VIEW_TYPE_NAV, "left", { reveal: true });
 		workspace.rightSplit?.collapse();
+		if (leaf.view instanceof FeedView) leaf.view.focusRoot();
 	}
 
 	private onLayoutChange(): void {

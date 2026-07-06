@@ -41,6 +41,17 @@ export class FeedView extends ItemView {
 				</PluginContext.Provider>
 			</StrictMode>,
 		);
+		// Mount-time focus (in FeedApp) misses reveals of an existing leaf;
+		// keyboard navigation should work whenever the feed becomes active.
+		this.registerEvent(
+			this.app.workspace.on("active-leaf-change", (leaf) => {
+				if (leaf === this.leaf) this.focusRoot();
+			}),
+		);
+	}
+
+	focusRoot(): void {
+		this.contentEl.querySelector<HTMLElement>(".ripple-app")?.focus({ preventScroll: true });
 	}
 
 	/** Retries briefly: right after opening, React may not have mounted yet. */
