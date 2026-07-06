@@ -51,7 +51,11 @@ export class FeedView extends ItemView {
 	}
 
 	focusRoot(): void {
-		this.contentEl.querySelector<HTMLElement>(".ripple-app")?.focus({ preventScroll: true });
+		// Deferred: the command palette restores focus to the previous element
+		// when it closes, which would immediately undo a synchronous focus.
+		window.setTimeout(() => {
+			this.contentEl.querySelector<HTMLElement>(".ripple-app")?.focus({ preventScroll: true });
+		}, 50);
 	}
 
 	/** Retries briefly: right after opening, React may not have mounted yet. */
