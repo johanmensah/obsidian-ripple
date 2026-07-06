@@ -16,8 +16,10 @@ Ripple is an independent project inspired by Pile; it is not affiliated with or 
 
 ```
 npm install
-npm run fixtures   # seeds dev-vault/ with sample posts; copies the plugin in
-npm run dev        # watch build
+npm run fixtures   # creates dev-vault/ and seeds it with sample posts
+npm run dev        # watch build; every rebuild lands in dev-vault automatically
 ```
 
-Open `dev-vault/` as a vault in Obsidian, turn off restricted mode, and enable Ripple. The dev vault ships with AI Providers preconfigured against a local Ollama (`qwen3:14b`). Never point the build at a real vault.
+Open `dev-vault/` as a vault in Obsidian and choose "Trust author and enable plugins" — Ripple is live; reload Obsidian after changes. `npm run build` typechecks and bundles for production, and `npm run lint` must stay clean.
+
+To try reflections while developing, install the AI Providers plugin in the dev vault and configure any provider (a local Ollama works well). The dev vault is gitignored and disposable; never point the build at a real vault.
