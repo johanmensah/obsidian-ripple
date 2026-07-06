@@ -365,6 +365,11 @@ body.is-mobile .ripple-post-menu {
 	visibility: visible;
 }
 
+.ripple-name-input {
+	width: 100%;
+	margin-bottom: var(--size-4-3);
+}
+
 .ripple-tag-chip {
 	cursor: var(--cursor);
 	padding: 0 var(--size-4-2);

@@ -12,3 +12,4 @@
 - Dev vault receives build copies instead of a recursive repo symlink.
 - Full-bleed pane on desktop, active-filter bar with clear chips, and a new post command.
 - Pile-inspired anatomy: ball-and-thread-line rail (highlight = ball colour, dotted line and pulse for AI), meta above the body, hover reply/reflect actions, card composer.
+- Name note action (menu and `t`): opt-in human filenames per post, first-words suggestion, thread links preserved through the rename.

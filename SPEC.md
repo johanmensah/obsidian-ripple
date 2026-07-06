@@ -87,7 +87,7 @@ tags: []
 ## Keyboard
 
 - `n` or `c` focuses the composer; `Cmd/Ctrl-Enter` posts/saves; `Esc` blurs or cancels an in-place edit.
-- `j`/`k` or arrows move post selection; `Enter` edits; `r` replies (v2); `h` cycles highlight (v2); `o` opens as note.
+- `j`/`k` or arrows move post selection; `Enter` edits; `r` replies (v2); `h` cycles highlight (v2); `t` names the note (rename via `fileManager`, thread links preserved); `o` opens as note.
 
 ## Acceptance criteria
 

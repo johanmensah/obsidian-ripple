@@ -45,6 +45,7 @@ export function PostCard({
 	onSelect,
 	onTagClick,
 	onRequestEdit,
+	onRequestName,
 	onEditDone,
 	onRequestReply,
 	onReplySubmit,
@@ -64,6 +65,7 @@ export function PostCard({
 	onSelect: () => void;
 	onTagClick: (tag: string) => void;
 	onRequestEdit: () => void;
+	onRequestName: () => void;
 	onEditDone: (body: string | null) => void;
 	onRequestReply: () => void;
 	onReplySubmit: (body: string) => void;
@@ -91,6 +93,9 @@ export function PostCard({
 				.onClick(onRequestReflect),
 		);
 		menu.addItem((item) => item.setTitle("Edit").setIcon("pencil").onClick(onRequestEdit));
+		menu.addItem((item) =>
+			item.setTitle("Name…").setIcon("text-cursor-input").onClick(onRequestName),
+		);
 		// A second menu rather than a submenu: MenuItem.setSubmenu is not in the
 		// published API.
 		const event = e.nativeEvent;

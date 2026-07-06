@@ -85,6 +85,40 @@ export async function createPost(
 	return app.vault.create(path, lines.join("\n"));
 }
 
+/** Obsidian-safe basename: forbidden characters stripped, whitespace
+ * collapsed, sensible length cap. Returns empty when nothing survives. */
+export function sanitiseName(raw: string): string {
+	return raw
+		.replace(/[/\\:|#^[\]?]/gu, " ")
+		.replace(/^\.+/u, "")
+		.replace(/\s+/gu, " ")
+		.trim()
+		.slice(0, 120)
+		.trim();
+}
+
+/** A naming suggestion from the first words of the body. */
+export function nameSuggestion(body: string): string {
+	const firstLine = body
+		.split("\n")
+		.map((line) => line.replace(/^[#>\-*\s]+/u, "").trim())
+		.find((line) => line.length > 0);
+	if (!firstLine) return "";
+	const words = firstLine.split(" ").slice(0, 8).join(" ");
+	return sanitiseName(words.replace(/[.,;!?]+$/u, ""));
+}
+
+/** Renames within the post's folder; fileManager keeps reply_to links true. */
+export async function renamePost(app: App, file: TFile, name: string): Promise<boolean> {
+	const clean = sanitiseName(name);
+	if (!clean || clean === file.basename) return false;
+	const dir = file.parent?.path ?? "";
+	const path = normalizePath(dir ? `${dir}/${clean}.md` : `${clean}.md`);
+	if (app.vault.getAbstractFileByPath(path)) return false;
+	await app.fileManager.renameFile(file, path);
+	return true;
+}
+
 /** Replaces the body below the frontmatter block, then stamps `updated`. */
 export async function saveEdit(app: App, file: TFile, body: string): Promise<void> {
 	await app.vault.process(file, (text) => {

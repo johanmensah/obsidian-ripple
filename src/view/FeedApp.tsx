@@ -8,10 +8,18 @@ import {
 	useSyncExternalStore,
 } from "react";
 import { ConfirmModal } from "../modals/ConfirmModal";
+import { NameModal } from "../modals/NameModal";
 import { groupByDay } from "../services/journal-model";
 import { Icon } from "./components/Icon";
 import { JournalStore } from "../services/journal-store";
-import { createPost, saveEdit, setHighlight } from "../services/post-io";
+import {
+	createPost,
+	nameSuggestion,
+	renamePost,
+	saveEdit,
+	setHighlight,
+	splitFrontmatter,
+} from "../services/post-io";
 import { getAI, reflect, threadText } from "../services/reflect";
 import { HIGHLIGHT_COLOURS, HighlightColour, Thread } from "../types";
 import { usePlugin } from "./context";
@@ -129,6 +137,34 @@ export function FeedApp({ store }: { store: JournalStore }) {
 		});
 	};
 
+	const namePost = (path: string) => {
+		const file = fileOf(path);
+		if (!file) return;
+		void plugin.app.vault.cachedRead(file).then((text) => {
+			// A stamp-named post gets a first-words suggestion; a named one
+			// starts from its current name.
+			const stampNamed = /^\d{8}-\d{6}$/.test(file.basename);
+			const initial = stampNamed
+				? nameSuggestion(splitFrontmatter(plugin.app, file, text).body)
+				: file.basename;
+			new NameModal(plugin.app, initial || file.basename, (name) => {
+				void renamePost(plugin.app, file, name)
+					.then((renamed) => {
+						if (!renamed) {
+							new Notice("Could not use that name: empty, unchanged, or already taken.");
+							return;
+						}
+						// fileManager mutates the TFile in place; its path is the new one.
+						setCursor(file.path);
+					})
+					.catch((err: unknown) => {
+						console.error("Ripple: rename failed", err);
+						new Notice("Could not rename the note.");
+					});
+			}).open();
+		});
+	};
+
 	const confirmDelete = (path: string, replyCount: number) => {
 		const file = fileOf(path);
 		if (!file) return;
@@ -158,6 +194,9 @@ export function FeedApp({ store }: { store: JournalStore }) {
 				return;
 			}
 			const abort = new AbortController();
+			// The TFile is captured now because a rename mid-stream mutates its
+			// path and basename in place; a path lookup at write time would miss.
+			const rootFile = plugin.app.vault.getFileByPath(thread.root.path);
 			setPending({ rootPath: thread.root.path, providerName: provider.name, text: "", abort });
 			try {
 				const text = await reflect({
@@ -172,10 +211,8 @@ export function FeedApp({ store }: { store: JournalStore }) {
 					abortController: abort,
 				});
 				// The file exists only once there is a final text; abort writes nothing.
-				// Folder and basename are re-read at write time: either can change
-				// (settings edit, rename) while the stream runs.
+				// Folder is re-read at write time (settings can change mid-stream).
 				if (text.trim()) {
-					const rootFile = plugin.app.vault.getFileByPath(thread.root.path);
 					await createPost(plugin.app, store.getSnapshot().journalFolder, text, {
 						replyTo: rootFile?.basename ?? thread.root.basename,
 						ai: true,
@@ -256,6 +293,12 @@ export function FeedApp({ store }: { store: JournalStore }) {
 				if (cursor) {
 					e.preventDefault();
 					cycleHighlight(cursor);
+				}
+				break;
+			case "t":
+				if (cursor) {
+					e.preventDefault();
+					namePost(cursor);
 				}
 				break;
 			case "n":
@@ -357,6 +400,7 @@ export function FeedApp({ store }: { store: JournalStore }) {
 									store.setTagFilter(snap.tagFilter === tag ? null : tag)
 								}
 								onRequestEdit={() => setEditing(thread.root.path)}
+								onRequestName={() => namePost(thread.root.path)}
 								onEditDone={(body) => finishEdit(thread.root.path, body)}
 								onRequestReply={() => setReplying(thread.root.path)}
 								onReplySubmit={(body) =>
