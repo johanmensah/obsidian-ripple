@@ -43,6 +43,16 @@ export class FeedView extends ItemView {
 		);
 	}
 
+	/** Retries briefly: right after opening, React may not have mounted yet. */
+	focusComposer(): void {
+		const attempt = (tries: number) => {
+			const el = this.contentEl.querySelector<HTMLTextAreaElement>("textarea");
+			if (el) el.focus();
+			else if (tries > 0) window.setTimeout(() => attempt(tries - 1), 50);
+		};
+		attempt(10);
+	}
+
 	async onClose(): Promise<void> {
 		this.root?.unmount();
 		this.root = null;

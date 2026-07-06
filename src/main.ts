@@ -49,6 +49,15 @@ export default class RipplePlugin extends Plugin {
 					name: "Open journal",
 					callback: () => void this.activateJournal(),
 				});
+				this.addCommand({
+					id: "new-post",
+					name: "New post",
+					callback: async () => {
+						await this.activateJournal();
+						const view = this.app.workspace.getLeavesOfType(VIEW_TYPE_FEED)[0]?.view;
+						if (view instanceof FeedView) view.focusComposer();
+					},
+				});
 				this.addSettingTab(new RippleSettingTab(this.app, this));
 				// Restore runs here rather than in View.onClose: plugin unload keeps
 				// leaves in place and fires no layout-change, so this never runs at unload.

@@ -234,6 +234,60 @@ body {
 	--icon-size: var(--icon-xs);
 }
 
+/* A pane holding only Ripple drops its tab chrome — the normal top bar or
+   the stacked-tab spine — and Ripple's view header. Any second tab in the
+   pane brings the bar straight back. Desktop only: the mobile header carries
+   the navigation drawers. */
+body:not(.is-mobile)
+	.workspace-tabs:has(.workspace-tab-header[data-type="ripple-feed"]):not(
+		:has(.workspace-tab-header:not([data-type="ripple-feed"]))
+	)
+	.workspace-tab-header-container,
+body:not(.is-mobile)
+	.workspace-tabs:has(.workspace-tab-header[data-type="ripple-feed"]):not(
+		:has(.workspace-tab-header:not([data-type="ripple-feed"]))
+	)
+	.workspace-tab-container
+	> .workspace-tab-header {
+	display: none;
+}
+
+body:not(.is-mobile) .workspace-leaf-content[data-type="ripple-feed"] > .view-header {
+	display: none;
+}
+
+/* Core sizes view-content as 100% minus the header and pads it; both must be
+   undone here (the same per-view escape hatch core uses for [data-type=sync]). */
+body:not(.is-mobile) .workspace-leaf-content[data-type="ripple-feed"] > .view-content {
+	height: 100%;
+	padding: 0;
+}
+
+/* Active-filter bar: the feed always says why it is not showing everything. */
+.ripple-filter-bar {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin-bottom: var(--size-4-3);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.ripple-filter-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	padding: 0 var(--size-4-2);
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-hover);
+	cursor: var(--cursor);
+}
+
+.ripple-filter-chip .ripple-filter-x {
+	display: flex;
+	--icon-size: var(--icon-xs);
+}
+
 /* Left-sidebar navigation, styled to match Obsidian's own. */
 .ripple-nav {
 	padding: var(--size-2-3) var(--size-2-2);

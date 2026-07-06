@@ -9,6 +9,7 @@ import {
 } from "react";
 import { ConfirmModal } from "../modals/ConfirmModal";
 import { groupByDay } from "../services/journal-model";
+import { Icon } from "./components/Icon";
 import { JournalStore } from "../services/journal-store";
 import { createPost, saveEdit, setHighlight } from "../services/post-io";
 import { getAI, reflect, threadText } from "../services/reflect";
@@ -16,6 +17,26 @@ import { HIGHLIGHT_COLOURS, HighlightColour, Thread } from "../types";
 import { usePlugin } from "./context";
 import { Composer } from "./components/Composer";
 import { PostCard } from "./components/PostCard";
+
+function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
+	return (
+		<span
+			role="button"
+			tabIndex={0}
+			className="ripple-filter-chip"
+			onClick={onClear}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					onClear();
+				}
+			}}
+		>
+			{label}
+			<Icon name="x" className="ripple-filter-x" />
+		</span>
+	);
+}
 
 export function FeedApp({ store }: { store: JournalStore }) {
 	const plugin = usePlugin();
@@ -247,12 +268,26 @@ export function FeedApp({ store }: { store: JournalStore }) {
 	const onRootClick = (e: MouseEvent<HTMLDivElement>) => {
 		const target = e.target as HTMLElement;
 		const anchor = target.closest("a.internal-link");
-		if (!(anchor instanceof HTMLAnchorElement)) return;
-		e.preventDefault();
-		const href = anchor.getAttribute("data-href") ?? anchor.getAttribute("href");
-		if (!href) return;
-		const source = target.closest("[data-path]")?.getAttribute("data-path") ?? "";
-		void plugin.app.workspace.openLinkText(href, source, Keymap.isModEvent(e.nativeEvent));
+		if (anchor instanceof HTMLAnchorElement) {
+			e.preventDefault();
+			const href = anchor.getAttribute("data-href") ?? anchor.getAttribute("href");
+			if (!href) return;
+			const source = target.closest("[data-path]")?.getAttribute("data-path") ?? "";
+			void plugin.app.workspace.openLinkText(href, source, Keymap.isModEvent(e.nativeEvent));
+			return;
+		}
+		// Keyboard keeps working after button clicks (menus, composer actions).
+		if (target.closest("button")) rootRef.current?.focus({ preventScroll: true });
+	};
+
+	const monthName = (key: string) => {
+		const entry = snap.months.find((m) => m.key === key);
+		return entry
+			? new Date(entry.year, entry.month - 1).toLocaleDateString("en-GB", {
+					month: "long",
+					year: "numeric",
+				})
+			: key;
 	};
 
 	const groups = groupByDay(snap.threads, Date.now());
@@ -266,6 +301,34 @@ export function FeedApp({ store }: { store: JournalStore }) {
 			onClick={onRootClick}
 		>
 			<div className="ripple-column">
+				{(snap.monthFilter !== null ||
+					snap.tagFilter !== null ||
+					snap.highlightFilter !== null) && (
+					<div className="ripple-filter-bar">
+						<span>Showing</span>
+						{snap.monthFilter && (
+							<FilterChip
+								label={monthName(snap.monthFilter)}
+								onClear={() => store.setMonthFilter(null)}
+							/>
+						)}
+						{snap.tagFilter && (
+							<FilterChip
+								label={`#${snap.tagFilter}`}
+								onClear={() => store.setTagFilter(null)}
+							/>
+						)}
+						{snap.highlightFilter && (
+							<FilterChip
+								label={
+									snap.highlightFilter.charAt(0).toUpperCase() +
+									snap.highlightFilter.slice(1)
+								}
+								onClear={() => store.setHighlightFilter(null)}
+							/>
+						)}
+					</div>
+				)}
 				<div ref={composerBoxRef}>
 					<Composer
 						placeholder="What's on your mind?"
