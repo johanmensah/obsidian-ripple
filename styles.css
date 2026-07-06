@@ -324,7 +324,7 @@ body.is-mobile .ripple-post-menu {
 	width: 100%;
 	resize: none;
 	overflow: hidden;
-	min-height: calc(var(--font-text-size) * 2.4);
+	min-height: calc(var(--font-text-size) * var(--line-height-normal));
 	padding: 0;
 	border: none;
 	background: transparent;
@@ -339,11 +339,21 @@ body.is-mobile .ripple-post-menu {
 	outline: none;
 }
 
+/* The action row costs no height until the composer is in use: one quiet
+   line at rest, buttons slide in on focus or once there is a draft. */
 .ripple-composer-actions {
 	display: flex;
 	justify-content: flex-end;
 	gap: var(--size-4-2);
-	min-height: var(--size-4-6);
+	max-height: 0;
+	overflow: hidden;
+	transition: max-height 160ms ease-out;
+}
+
+.ripple-composer:focus-within .ripple-composer-actions,
+.ripple-composer:has(.ripple-composer-actions button:not(:disabled)) .ripple-composer-actions {
+	max-height: var(--size-4-8);
+	margin-top: var(--size-2-2);
 }
 
 .ripple-composer-actions button {
