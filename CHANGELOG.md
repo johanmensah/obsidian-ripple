@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Move the release workflow to the current Node 24-based checkout and setup-node actions, pinned to immutable commits.
+
 ## 0.2.0
 
 - Add terminal actions that export either the revealed thread tree or one direct root-to-terminal branch to a standalone Markdown note in Obsidian's configured new-note location.
@@ -19,6 +23,8 @@
 - Separate fork-origin actions for collapsing side branches and collapsing every note below the origin.
 - Add view-only fork flattening while preserving branch identity and terminal reflection semantics.
 - Preserve post, reply, and edit drafts when a journal write fails, and retry timestamp filename collisions safely.
+- Update vulnerable development-only transitive dependencies so both full and production dependency audits report zero vulnerabilities.
+- Gate releases on metadata validation, a clean dependency install, audit, lint, and build checks, then attest the exact release assets.
 
 ## 0.1.2
 
