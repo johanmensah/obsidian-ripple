@@ -35,8 +35,8 @@ Match the conventions of these repositories. When in doubt, do what they do.
 ## Data rules (non-negotiable)
 
 - **Truth lives in user-visible files**: post frontmatter and Markdown bodies inside the journal folder. Any index or cache is derived, disposable, and rebuildable.
-- **The journal folder is the boundary.** Ripple reads and writes nothing outside `settings.journalFolder`, and nothing from the journal ever leaves the machine except the single post/thread sent to the user's chosen AI provider on an explicit reflect action.
-- **Never modify a user's file except as the direct result of an explicit user action** (post, edit, highlight, delete, reflect). No background rewrites, no silent renames.
+- **The journal folder is the source boundary.** Ripple indexes and reads post sources only inside `settings.journalFolder`. Normal journal writes stay there; the sole local exception is an explicit thread export into Obsidian's configured new-note location. Nothing from the journal ever leaves the machine except the single post/thread sent to the user's chosen AI provider on an explicit reflect action.
+- **Never modify or create a user's file except as the direct result of an explicit user action** (post, edit, name, highlight, delete, reflect, export). No background rewrites, no silent renames.
 - Frontmatter writes go through `processFrontMatter` and must preserve unknown fields and key order where practical.
 - AI reply files are written only after a reflection completes; an aborted or failed stream writes nothing.
 

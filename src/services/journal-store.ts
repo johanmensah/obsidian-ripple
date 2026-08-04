@@ -125,7 +125,12 @@ export class JournalStore {
 			}
 		};
 		if (root) collect(root);
-		this.rawPosts = files.map((file) => this.toPost(file));
+		this.rawPosts = files
+			.filter(
+				(file) =>
+					this.app.metadataCache.getFileCache(file)?.frontmatter?.ripple_export !== true,
+			)
+			.map((file) => this.toPost(file));
 		this.commit({});
 	}
 
@@ -173,7 +178,11 @@ export class JournalStore {
 			);
 		}
 		if (next.highlightFilter) {
-			threads = threads.filter((t) => t.root.highlight === next.highlightFilter);
+			threads = threads.filter(
+				(t) =>
+					t.root.highlight === next.highlightFilter ||
+					t.replies.some((r) => r.highlight === next.highlightFilter),
+			);
 		}
 		next.threads = threads;
 		this.snapshot = next;

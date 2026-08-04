@@ -1,23 +1,32 @@
 import { App, Modal, Notice } from "obsidian";
 
+interface NameModalOptions {
+	title?: string;
+	submitLabel?: string;
+}
+
 export class NameModal extends Modal {
 	constructor(
 		app: App,
 		private readonly initial: string,
 		private readonly onSubmit: (name: string) => void,
+		private readonly options: NameModalOptions = {},
 	) {
 		super(app);
 	}
 
 	onOpen(): void {
-		this.titleEl.setText("Name note");
+		this.titleEl.setText(this.options.title ?? "Name note");
 		const input = this.contentEl.createEl("input", {
 			type: "text",
 			value: this.initial,
 			cls: "ripple-name-input",
 		});
 		const row = this.contentEl.createDiv({ cls: "modal-button-container" });
-		const save = row.createEl("button", { text: "Save", cls: "mod-cta" });
+		const save = row.createEl("button", {
+			text: this.options.submitLabel ?? "Save",
+			cls: "mod-cta",
+		});
 		const submit = () => {
 			const name = input.value.trim();
 			if (!name) {

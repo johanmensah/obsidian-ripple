@@ -1,53 +1,58 @@
-import { Menu } from "obsidian";
-import { MouseEvent, useEffect, useState } from "react";
-import { timeLabel } from "../../services/journal-model";
-import { splitFrontmatter } from "../../services/post-io";
-import { HIGHLIGHT_COLOURS, HighlightColour, Thread } from "../../types";
-import { usePlugin } from "../context";
-import { Composer } from "./Composer";
-import { Icon } from "./Icon";
+import { useState } from "react";
+import { mostRecentPost, timeLabel } from "../../services/journal-model";
+import { HighlightColour, Post, ReflectionScope, Thread } from "../../types";
+import { EditBody } from "./EditBody";
 import { MarkdownPane } from "./MarkdownPane";
+import { CollapseToggle, PostMenuButton, ThreadActionRow } from "./PostControls";
 import { TagChip } from "./TagChip";
 import { ThreadedReplies } from "./ThreadedReplies";
 
-function EditBody({ path, onDone }: { path: string; onDone: (body: string | null) => void }) {
-	const plugin = usePlugin();
-	const [initial, setInitial] = useState<string | null>(null);
-	useEffect(() => {
-		const file = plugin.app.vault.getFileByPath(path);
-		if (!file) return;
-		let alive = true;
-		void plugin.app.vault.cachedRead(file).then((text) => {
-			if (alive) setInitial(splitFrontmatter(plugin.app, file, text).body);
-		});
-		return () => {
-			alive = false;
-		};
-	}, [path, plugin]);
-	if (initial === null) return null;
-	return (
-		<Composer
-			placeholder=""
-			initial={initial}
-			autoFocus
-			submitLabel="Save"
-			onSubmit={(body) => onDone(body)}
-			onCancel={() => onDone(null)}
-		/>
-	);
+function sideBranchHiddenCount(originPath: string, replies: Post[]): number {
+	const children = new Map<string, Post[]>();
+	for (const reply of replies) {
+		if (!reply.replyTo) continue;
+		const siblings = children.get(reply.replyTo) ?? [];
+		siblings.push(reply);
+		children.set(reply.replyTo, siblings);
+	}
+	for (const siblings of children.values()) {
+		siblings.sort((a, b) => b.created - a.created || b.path.localeCompare(a.path));
+	}
+	const countSubtree = (path: string, visited: Set<string>): number => {
+		if (visited.has(path)) return 0;
+		const nextVisited = new Set(visited).add(path);
+		let count = 1;
+		for (const child of children.get(path) ?? []) {
+			count += countSubtree(child.path, nextVisited);
+		}
+		return count;
+	};
+	const siblings = children.get(originPath) ?? [];
+	return siblings
+		.slice(0, -1)
+		.reduce((count, reply) => count + countSubtree(reply.path, new Set()), 0);
+}
+
+function sideBranchRoots(originPath: string, replies: Post[]): Post[] {
+	return replies
+		.filter((reply) => reply.replyTo === originPath)
+		.sort((a, b) => b.created - a.created || b.path.localeCompare(a.path))
+		.slice(0, -1);
 }
 
 export function PostCard({
 	thread,
 	isCursor,
-	isEditing,
-	isReplying,
+	editingPath,
+	replyingTo,
 	onSelect,
 	onTagClick,
 	onRequestEdit,
 	onRequestName,
 	onEditDone,
 	onRequestReply,
+	onRequestExport,
+	onRequestExportBranch,
 	onReplySubmit,
 	onReplyCancel,
 	onSetHighlight,
@@ -55,101 +60,172 @@ export function PostCard({
 	pendingReflection,
 	onRequestReflect,
 	onStopReflection,
+	onPromotePath,
 	onOpenPath,
+	onDeleteThread,
 	onDeletePath,
 }: {
 	thread: Thread;
 	isCursor: boolean;
-	isEditing: boolean;
-	isReplying: boolean;
+	editingPath: string | null;
+	replyingTo: string | null;
 	onSelect: () => void;
 	onTagClick: (tag: string) => void;
-	onRequestEdit: () => void;
-	onRequestName: () => void;
-	onEditDone: (body: string | null) => void;
-	onRequestReply: () => void;
-	onReplySubmit: (body: string) => void;
+	onRequestEdit: (path: string) => void;
+	onRequestName: (path: string) => void;
+	onEditDone: (path: string, body: string | null) => boolean | Promise<boolean>;
+	onRequestReply: (path: string) => void;
+	onRequestExport: (
+		visiblePaths: readonly string[],
+		depths: ReadonlyMap<string, number>,
+	) => void;
+	onRequestExportBranch: (
+		path: string,
+		visiblePaths: readonly string[],
+		depths: ReadonlyMap<string, number>,
+	) => void;
+	onReplySubmit: (body: string) => boolean | Promise<boolean>;
 	onReplyCancel: () => void;
-	onSetHighlight: (colour: HighlightColour | null) => void;
+	onSetHighlight: (path: string, colour: HighlightColour | null) => void;
 	reflectEnabled: boolean;
-	pendingReflection: { providerName: string; text: string } | null;
-	onRequestReflect: () => void;
+	pendingReflection: { targetPath: string; providerName: string; text: string } | null;
+	onRequestReflect: (path: string, scope: ReflectionScope) => void;
 	onStopReflection: () => void;
+	onPromotePath: (path: string) => void;
 	onOpenPath: (path: string) => void;
+	onDeleteThread: () => void;
 	onDeletePath: (path: string) => void;
 }) {
 	const { root, replies } = thread;
-	const hasThread = replies.length > 0 || isReplying || pendingReflection !== null;
-
-	const showMenu = (e: MouseEvent) => {
-		e.stopPropagation();
-		const menu = new Menu();
-		menu.addItem((item) => item.setTitle("Reply").setIcon("reply").onClick(onRequestReply));
-		menu.addItem((item) =>
-			item
-				.setTitle("Reflect")
-				.setIcon("sparkles")
-				.setDisabled(!reflectEnabled)
-				.onClick(onRequestReflect),
-		);
-		menu.addItem((item) => item.setTitle("Edit").setIcon("pencil").onClick(onRequestEdit));
-		menu.addItem((item) =>
-			item.setTitle("Name…").setIcon("text-cursor-input").onClick(onRequestName),
-		);
-		// A second menu rather than a submenu: MenuItem.setSubmenu is not in the
-		// published API.
-		const event = e.nativeEvent;
-		menu.addItem((item) =>
-			item.setTitle("Highlight…").setIcon("highlighter").onClick(() => {
-				const colours = new Menu();
-				for (const colour of HIGHLIGHT_COLOURS) {
-					colours.addItem((ci) =>
-						ci
-							.setTitle(colour.charAt(0).toUpperCase() + colour.slice(1))
-							.setIcon("circle")
-							.setChecked(root.highlight === colour)
-							.onClick(() => onSetHighlight(root.highlight === colour ? null : colour)),
-					);
+	const latest = mostRecentPost(thread);
+	const last = replies[replies.length - 1] ?? root;
+	const rootIsLatest = latest.path === root.path;
+	const rootIsEditing = editingPath === root.path;
+	const hasThread = replies.length > 0 || replyingTo !== null || pendingReflection !== null;
+	const [collapsedBranchOrigins, setCollapsedBranchOrigins] = useState<Set<string>>(
+		() => new Set(),
+	);
+	const [rootSubtreeCollapsed, setRootSubtreeCollapsed] = useState(false);
+	const [flattenedBranch, setFlattenedBranch] = useState<{
+		originPath: string;
+		branchRootPath: string;
+	} | null>(null);
+	const toggleBranchOrigin = (path: string) => {
+		setCollapsedBranchOrigins((current) => {
+			const next = new Set(current);
+			if (next.has(path)) next.delete(path);
+			else next.add(path);
+			return next;
+		});
+	};
+	const revealBranchOrigin = (path: string) => {
+		setCollapsedBranchOrigins((current) => {
+			if (!current.has(path)) return current;
+			const next = new Set(current);
+			next.delete(path);
+			return next;
+		});
+	};
+	const rootHiddenCount = sideBranchHiddenCount(root.path, replies);
+	const rootControlsFork = rootHiddenCount > 0;
+	const rootBranchCollapsed = collapsedBranchOrigins.has(root.path);
+	const rootCollapsed = rootSubtreeCollapsed || rootBranchCollapsed;
+	const rootCollapseCount = rootSubtreeCollapsed
+		? replies.length
+		: rootControlsFork
+			? rootHiddenCount
+			: replies.length;
+	const rootFlattenBranches = sideBranchRoots(root.path, replies).map((branchRoot) => ({
+		title: `Flatten branch from ${timeLabel(branchRoot.created, Date.now())}`,
+		active:
+			flattenedBranch?.originPath === root.path &&
+			flattenedBranch.branchRootPath === branchRoot.path,
+		onClick: () => {
+			revealBranchOrigin(root.path);
+			setRootSubtreeCollapsed(false);
+			setFlattenedBranch((current) =>
+				current?.originPath === root.path && current.branchRootPath === branchRoot.path
+					? null
+					: { originPath: root.path, branchRootPath: branchRoot.path },
+			);
+		},
+	}));
+	const rootBranchToggle =
+		rootHiddenCount > 0 || replies.length > 0
+			? {
+					collapsed: rootCollapsed,
+					hiddenCount: rootCollapseCount,
+					onToggle: () => {
+						if (rootSubtreeCollapsed) setRootSubtreeCollapsed(false);
+						else if (rootControlsFork) toggleBranchOrigin(root.path);
+						else setRootSubtreeCollapsed((collapsed) => !collapsed);
+					},
 				}
-				if (root.highlight) {
-					colours.addSeparator();
-					colours.addItem((ci) =>
-						ci.setTitle("Clear").setIcon("circle-off").onClick(() => onSetHighlight(null)),
-					);
+			: undefined;
+	const rootBranchMenuToggle: CollapseToggle | undefined = rootControlsFork
+		? {
+				collapsed: rootBranchCollapsed,
+				hiddenCount: rootHiddenCount,
+				onToggle: () => toggleBranchOrigin(root.path),
+			}
+		: undefined;
+	const rootSubtreeToggle: CollapseToggle | undefined =
+		replies.length > 0
+			? {
+					collapsed: rootSubtreeCollapsed,
+					hiddenCount: replies.length,
+					onToggle: () => setRootSubtreeCollapsed((collapsed) => !collapsed),
 				}
-				colours.showAtMouseEvent(event);
-			}),
-		);
-		menu.addItem((item) =>
-			item.setTitle("Open as note").setIcon("file-symlink").onClick(() => onOpenPath(root.path)),
-		);
-		menu.addSeparator();
-		menu.addItem((item) =>
-			item
-				.setTitle("Delete")
-				.setIcon("trash-2")
-				.setWarning(true)
-				.onClick(() => onDeletePath(root.path)),
-		);
-		menu.showAtMouseEvent(e.nativeEvent);
+			: undefined;
+	const requestRootReply = () => {
+		revealBranchOrigin(root.path);
+		setRootSubtreeCollapsed(false);
+		onRequestReply(root.path);
+	};
+	const requestRootReflection = () => {
+		revealBranchOrigin(root.path);
+		setRootSubtreeCollapsed(false);
+		onRequestReflect(root.path, "note");
 	};
 
 	return (
 		<article
-			className={`ripple-post${isCursor ? " is-cursor" : ""}${
-				root.highlight ? ` ripple-hl-${root.highlight}` : ""
-			}`}
+			className={`ripple-post${isCursor ? " is-cursor" : ""}`}
 			data-path={root.path}
 			onClick={(e) => {
-				// Links inside the rendered body belong to the feed-level handler.
-				if ((e.target as HTMLElement).closest("a")) return;
+				// Interactive children own their clicks; the card handles its body.
+				if (
+					(e.target as HTMLElement).closest(
+						"a, button, textarea, input, [contenteditable=true]",
+					)
+				)
+					return;
 				if (e.metaKey || e.ctrlKey) onOpenPath(root.path);
 				else onSelect();
 			}}
 		>
-			<div className="ripple-row">
+			<div
+				className={`ripple-row${rootIsLatest ? " is-latest" : ""}${
+					root.highlight ? ` ripple-hl-${root.highlight}` : ""
+				}`}
+			>
 				<div className="ripple-rail">
-					<span className="ripple-ball" />
+					{rootBranchToggle && !rootIsEditing ? (
+						<button
+							className={`ripple-branch-ball is-root${rootCollapsed ? " is-collapsed" : ""}`}
+							aria-label={
+								rootCollapsed
+									? `Expand branch, ${rootCollapseCount} notes hidden`
+									: "Collapse branch"
+							}
+							aria-expanded={!rootCollapsed}
+							onClick={rootBranchToggle.onToggle}
+						>
+							<span className="ripple-ball" />
+						</button>
+					) : (
+						<span className="ripple-ball" />
+					)}
 					{hasThread && <div className="ripple-line" />}
 				</div>
 				<div className="ripple-main">
@@ -158,47 +234,87 @@ export function PostCard({
 						{root.tags.map((tag) => (
 							<TagChip key={tag} tag={tag} onClick={onTagClick} />
 						))}
-						<button
-							className="clickable-icon ripple-post-menu"
-							aria-label="Post actions"
-							onClick={showMenu}
-						>
-							<Icon name="more-horizontal" />
-						</button>
+						{!rootIsEditing && (
+							<PostMenuButton
+								post={root}
+								expanded={rootIsLatest}
+								reflectEnabled={reflectEnabled}
+								onReply={requestRootReply}
+								onReflect={requestRootReflection}
+								onEdit={() => onRequestEdit(root.path)}
+								onName={() => onRequestName(root.path)}
+								branchToggle={rootBranchMenuToggle}
+								subtreeToggle={rootSubtreeToggle}
+								flattenBranches={rootFlattenBranches}
+								exportAction={
+									last.path === root.path
+										? {
+												title: "Export thread as note",
+												onClick: () =>
+													onRequestExport([root.path], new Map([[root.path, 0]])),
+											}
+										: undefined
+								}
+								onSetHighlight={(colour) => onSetHighlight(root.path, colour)}
+								onOpen={() => onOpenPath(root.path)}
+								onDelete={() => onDeletePath(root.path)}
+							/>
+						)}
 					</header>
-					{isEditing ? (
-						<EditBody path={root.path} onDone={onEditDone} />
+					{rootIsEditing ? (
+						<EditBody path={root.path} onDone={(body) => onEditDone(root.path, body)} />
 					) : (
 						<MarkdownPane path={root.path} mtime={root.mtime} />
 					)}
-					{!isEditing && (
-						<div className="ripple-post-actions">
-							<button className="ripple-action" onClick={onRequestReply}>
-								<Icon name="reply" className="ripple-action-icon" />
-								Reply
-							</button>
-							<button
-								className="ripple-action"
-								disabled={!reflectEnabled}
-								onClick={onRequestReflect}
-							>
-								<Icon name="sparkles" className="ripple-action-icon" />
-								Reflect
-							</button>
-						</div>
+					{!rootIsEditing && (
+						<ThreadActionRow
+							reflectEnabled={reflectEnabled}
+							onReply={requestRootReply}
+							onReflect={requestRootReflection}
+							mobileReflect={last.path === root.path}
+						/>
 					)}
 				</div>
 			</div>
 			{hasThread && (
 				<ThreadedReplies
+					rootPath={root.path}
 					replies={replies}
-					replying={isReplying}
+					latestPath={latest.path}
+					lastPath={last.path}
+					collapsedBranchOrigins={collapsedBranchOrigins}
+					rootSubtreeCollapsed={rootSubtreeCollapsed}
+					flattenedBranch={flattenedBranch}
+					replyingTo={replyingTo}
 					pending={pendingReflection}
+					editingPath={editingPath}
 					onStopPending={onStopReflection}
+					reflectEnabled={reflectEnabled}
+					onRequestReply={onRequestReply}
+					onRequestReflect={onRequestReflect}
+					onRequestExport={onRequestExport}
+					onRequestExportBranch={onRequestExportBranch}
+					onRequestEdit={onRequestEdit}
+					onRequestName={onRequestName}
+					onPromote={onPromotePath}
+					onEditDone={onEditDone}
+					onSetHighlight={onSetHighlight}
 					onReplySubmit={onReplySubmit}
 					onReplyCancel={onReplyCancel}
 					onOpen={onOpenPath}
+					onDeleteThread={onDeleteThread}
 					onDelete={onDeletePath}
+					onToggleBranchOrigin={toggleBranchOrigin}
+					onRevealBranchOrigin={revealBranchOrigin}
+					onRevealRootSubtree={() => setRootSubtreeCollapsed(false)}
+					onToggleFlattenBranch={(originPath, branchRootPath) => {
+						setFlattenedBranch((current) =>
+							current?.originPath === originPath &&
+							current.branchRootPath === branchRootPath
+								? null
+								: { originPath, branchRootPath },
+						);
+					}}
 				/>
 			)}
 		</article>

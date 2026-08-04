@@ -1,9 +1,16 @@
 import { initAI } from "@obsidian-ai-providers/sdk";
-import { EventRef, Plugin, debounce } from "obsidian";
+import { EventRef, Plugin, TFile, debounce } from "obsidian";
 import { JournalStore } from "./services/journal-store";
 import { DEFAULT_SETTINGS, RippleSettingTab, RippleSettings, UiState } from "./settings";
 import { FeedView, VIEW_TYPE_FEED } from "./view/FeedView";
 import { NavView, VIEW_TYPE_NAV } from "./view/NavView";
+
+interface ReflectionRun {
+	target: TFile;
+	providerName: string;
+	text: string;
+	abort: AbortController;
+}
 
 export default class RipplePlugin extends Plugin {
 	settings: RippleSettings = DEFAULT_SETTINGS;
@@ -12,6 +19,8 @@ export default class RipplePlugin extends Plugin {
 	private storeRefs = 0;
 	private storeEventRefs: EventRef[] = [];
 	private unsubscribeUiSave: (() => void) | null = null;
+	private reflectionRun: ReflectionRun | null = null;
+	private readonly reflectionListeners = new Set<() => void>();
 	/** Right sidebar's collapsed state before Ripple opened; null when not captured. */
 	private priorRightCollapsed: boolean | null = null;
 
@@ -33,10 +42,10 @@ export default class RipplePlugin extends Plugin {
 		true,
 	);
 
-	async onload(): Promise<void> {
+	onload(): void {
 		// initAI readies the AI Providers bridge; with the fallback disabled it
 		// changes nothing when the plugin is absent — reflect degrades instead.
-		await initAI(
+		void initAI(
 			this.app,
 			this,
 			async () => {
@@ -66,7 +75,32 @@ export default class RipplePlugin extends Plugin {
 				);
 			},
 			{ disableFallback: true },
+		).catch((err: unknown) =>
+			console.error("Ripple: AI Providers initialisation failed", err),
 		);
+	}
+
+	onunload(): void {
+		this.reflectionRun?.abort.abort();
+		this.reflectionListeners.clear();
+	}
+
+	getReflectionRun = (): ReflectionRun | null => this.reflectionRun;
+
+	subscribeReflectionRun = (listener: () => void): (() => void) => {
+		this.reflectionListeners.add(listener);
+		return () => this.reflectionListeners.delete(listener);
+	};
+
+	setReflectionRun(next: ReflectionRun | null): void {
+		this.reflectionRun = next;
+		for (const listener of this.reflectionListeners) listener();
+	}
+
+	stopReflection(): void {
+		if (!this.reflectionRun) return;
+		this.reflectionRun.abort.abort();
+		this.setReflectionRun(null);
 	}
 
 	/** The ribbon toggles: open Ripple, or close it and return to the prior view. */
@@ -159,8 +193,58 @@ export default class RipplePlugin extends Plugin {
 		// loadData is typed any upstream; the shape is ours.
 		const raw = ((await this.loadData()) ?? {}) as Partial<RippleSettings> & { ui?: UiState };
 		const { ui, ...rest } = raw;
-		this.settings = { ...DEFAULT_SETTINGS, ...rest };
+		const textSetting = (value: unknown, fallback: string) =>
+			typeof value === "string" && value.trim() ? value.trim() : fallback;
+		this.settings = {
+			journalFolder: textSetting(rest.journalFolder, DEFAULT_SETTINGS.journalFolder),
+			exportFilenameTemplate: textSetting(
+				rest.exportFilenameTemplate,
+				DEFAULT_SETTINGS.exportFilenameTemplate,
+			),
+			exportFilenameDateTimeFormat: textSetting(
+				rest.exportFilenameDateTimeFormat,
+				DEFAULT_SETTINGS.exportFilenameDateTimeFormat,
+			),
+			exportPromptForName:
+				typeof rest.exportPromptForName === "boolean"
+					? rest.exportPromptForName
+					: DEFAULT_SETTINGS.exportPromptForName,
+			exportUserName: textSetting(
+				rest.exportUserName,
+				DEFAULT_SETTINGS.exportUserName,
+			),
+			exportReflectionName: textSetting(
+				rest.exportReflectionName,
+				DEFAULT_SETTINGS.exportReflectionName,
+			),
+			exportLineTemplate: textSetting(
+				rest.exportLineTemplate,
+				DEFAULT_SETTINGS.exportLineTemplate,
+			),
+			exportNoteDateFormat: textSetting(
+				rest.exportNoteDateFormat,
+				DEFAULT_SETTINGS.exportNoteDateFormat,
+			),
+			exportNoteTimeFormat: textSetting(
+				rest.exportNoteTimeFormat,
+				DEFAULT_SETTINGS.exportNoteTimeFormat,
+			),
+			aiProviderId:
+				typeof rest.aiProviderId === "string" && rest.aiProviderId.trim()
+					? rest.aiProviderId.trim()
+					: null,
+			reflectionPrompt: textSetting(
+				rest.reflectionPrompt,
+				DEFAULT_SETTINGS.reflectionPrompt,
+			),
+		};
 		this.ui = ui ?? {};
+	}
+
+	async restoreDefaultSettings(): Promise<void> {
+		const journalFolder = this.settings.journalFolder;
+		this.settings = { ...DEFAULT_SETTINGS, journalFolder };
+		await this.saveSettings();
 	}
 
 	async saveSettings(): Promise<void> {

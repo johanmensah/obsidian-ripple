@@ -1,5 +1,6 @@
 export const HIGHLIGHT_COLOURS = ["sky", "amber", "rose", "lime", "violet", "slate"] as const;
 export type HighlightColour = (typeof HIGHLIGHT_COLOURS)[number];
+export type ReflectionScope = "note" | "through" | "branch" | "whole";
 
 export interface Post {
 	path: string;
@@ -17,6 +18,6 @@ export interface Post {
 
 export interface Thread {
 	root: Post;
-	/** Oldest first: a conversation reads downward. */
+	/** Branch-aware pre-order; siblings are newest-first. */
 	replies: Post[];
 }

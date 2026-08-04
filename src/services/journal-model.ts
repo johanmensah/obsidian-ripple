@@ -27,41 +27,66 @@ export function monthKeyOf(ts: number): string {
 }
 
 /**
- * Collapses posts into top-level threads, newest-first; replies oldest-first.
- * A reply whose parent is missing renders top-level (the cache settles a tick
- * later); a reply to a reply attaches to its thread root.
+ * Collapses posts into top-level threads, newest-first. Children are
+ * newest-first, with each child's descendants immediately after it.
  */
 export function assembleThreads(posts: Post[]): Thread[] {
 	const byPath = new Map(posts.map((p) => [p.path, p]));
+	const children = new Map<string, Post[]>();
 	const roots: Post[] = [];
-	const replies: Post[] = [];
 	for (const post of posts) {
-		if (post.replyTo && byPath.has(post.replyTo)) replies.push(post);
-		else roots.push(post);
+		if (!post.replyTo || !byPath.has(post.replyTo)) {
+			roots.push(post);
+			continue;
+		}
+		const siblings = children.get(post.replyTo) ?? [];
+		siblings.push(post);
+		children.set(post.replyTo, siblings);
 	}
-	const threads = new Map(roots.map((root) => [root.path, { root, replies: [] as Post[] }]));
-	for (const reply of replies) {
-		const root = rootOf(reply, byPath);
-		const thread = threads.get(root.path);
-		if (thread) thread.replies.push(reply);
-		else threads.set(reply.path, { root: reply, replies: [] }); // reply cycle: no root exists
+	for (const siblings of children.values()) {
+		siblings.sort(compareNewestFirst);
 	}
-	const list = [...threads.values()];
-	for (const thread of list) thread.replies.sort((a, b) => a.created - b.created);
-	list.sort((a, b) => b.root.created - a.root.created || b.root.path.localeCompare(a.root.path));
-	return list;
+
+	const visited = new Set<string>();
+	const threads: Thread[] = [];
+	const addThread = (root: Post) => {
+		if (visited.has(root.path)) return;
+		visited.add(root.path);
+		const replies: Post[] = [];
+		const addChildren = (parentPath: string) => {
+			for (const child of children.get(parentPath) ?? []) {
+				if (visited.has(child.path)) continue;
+				visited.add(child.path);
+				replies.push(child);
+				addChildren(child.path);
+			}
+		};
+		addChildren(root.path);
+		threads.push({ root, replies });
+	};
+
+	for (const root of roots.sort(compareNewestFirst)) addThread(root);
+	// Malformed cycles have no natural root. Fall back deterministically so
+	// every file remains visible and traversal always terminates.
+	for (const post of [...posts].sort(compareNewestFirst)) addThread(post);
+	threads.sort((a, b) => compareNewestFirst(a.root, b.root));
+	return threads;
 }
 
-function rootOf(post: Post, byPath: Map<string, Post>): Post {
-	let current = post;
-	const seen = new Set([current.path]);
-	while (current.replyTo) {
-		const parent = byPath.get(current.replyTo);
-		if (!parent || seen.has(parent.path)) break;
-		seen.add(parent.path);
-		current = parent;
-	}
-	return current;
+function compareOldestFirst(a: Post, b: Post): number {
+	return a.created - b.created || a.path.localeCompare(b.path);
+}
+
+function compareNewestFirst(a: Post, b: Post): number {
+	return b.created - a.created || b.path.localeCompare(a.path);
+}
+
+/** The chronologically newest persisted note, independent of branch order. */
+export function mostRecentPost(thread: Thread): Post {
+	return thread.replies.reduce(
+		(latest, post) => (compareOldestFirst(post, latest) > 0 ? post : latest),
+		thread.root,
+	);
 }
 
 /** Months with top-level post counts, newest-first. */

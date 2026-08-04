@@ -62,14 +62,23 @@ body {
 	position: sticky;
 	top: 0;
 	z-index: 2;
+	width: fit-content;
 	margin: 0;
-	padding: var(--size-4-2) 0;
-	background: var(--background-primary);
+	padding: 0;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
 	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-semibold);
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
 	color: var(--text-faint);
+}
+
+.ripple-day-header > span {
+	display: inline-block;
+	padding-block: var(--size-4-2);
+	padding-inline-end: var(--size-4-2);
 }
 
 /* Active-filter bar: the feed always says why it is not showing everything. */
@@ -112,12 +121,13 @@ body {
 }
 
 .ripple-ball {
+	--ripple-ball-colour: var(--ripple-hl, var(--ripple-rail));
 	width: 14px;
 	height: 14px;
 	flex-shrink: 0;
 	margin-top: 6px;
 	border-radius: 50%;
-	background: var(--ripple-hl, var(--ripple-rail));
+	background: var(--ripple-ball-colour);
 	transition:
 		transform 120ms ease-in-out,
 		box-shadow 120ms ease-in-out;
@@ -130,7 +140,7 @@ body {
 }
 
 .ripple-ball.is-ai {
-	background: var(--interactive-accent);
+	--ripple-ball-colour: var(--ripple-hl, var(--interactive-accent));
 }
 
 .ripple-ball.is-hollow {
@@ -169,6 +179,66 @@ body {
 	background: none;
 	border-right: 2px dotted var(--ripple-rail);
 	border-radius: 0;
+}
+
+/* A branch moves sideways once, then keeps every continuation on that lane.
+   Ancestor lines remain visible while a side branch is read; there are no
+   horizontal connectors. */
+.ripple-thread {
+	--ripple-branch-step: var(--size-4-4);
+}
+
+.ripple-branch-rail {
+	position: relative;
+	align-self: stretch;
+	width: calc(20px + var(--ripple-lane, 0) * var(--ripple-branch-step));
+	min-height: 20px;
+	flex-shrink: 0;
+}
+
+.ripple-branch-guide,
+.ripple-branch-line {
+	position: absolute;
+	width: 2px;
+	border-radius: 1px;
+	background: var(--ripple-rail);
+}
+
+.ripple-branch-guide {
+	top: 0;
+	bottom: 0;
+	left: calc(9px + var(--ripple-guide, 0) * var(--ripple-branch-step));
+}
+
+.ripple-branch-line {
+	left: calc(9px + var(--ripple-lane, 0) * var(--ripple-branch-step));
+}
+
+.ripple-branch-line.is-up {
+	top: 0;
+	height: 5px;
+}
+
+.ripple-branch-line.is-down {
+	top: 17px;
+	bottom: 0;
+}
+
+.ripple-branch-line.is-dotted {
+	background: none;
+	border-right: 2px dotted var(--ripple-rail);
+	border-radius: 0;
+}
+
+.ripple-branch-rail > .ripple-ball {
+	position: absolute;
+	top: 5px;
+	left: calc(5px + var(--ripple-lane, 0) * var(--ripple-branch-step));
+	margin: 0;
+}
+
+body.is-mobile .ripple-thread {
+	--ripple-branch-step: var(--ripple-mobile-branch-step, var(--size-4-3));
 }
 
 /* Timeline scrubber: a dot per month pinned to the pane's right edge. */
@@ -290,8 +360,8 @@ body.is-mobile .ripple-scrubber-anchor {
 	transition: opacity 120ms ease-in-out;
 }
 
-.ripple-post:hover .ripple-post-actions,
-.ripple-post.is-cursor .ripple-post-actions,
+.ripple-row:hover > .ripple-main > .ripple-post-actions,
+.ripple-row:focus-within > .ripple-main > .ripple-post-actions,
 body.is-mobile .ripple-post-actions {
 	opacity: 1;
 }
@@ -310,10 +380,15 @@ body.is-mobile .ripple-post-actions {
 	cursor: var(--cursor);
 }
 
-.ripple-app button.ripple-action:hover:not(:disabled) {
+.ripple-app button.ripple-action:hover:not(:disabled),
+.ripple-app button.ripple-action:focus-visible:not(:disabled) {
 	color: var(--text-normal);
 	background: var(--background-modifier-active-hover);
 	border-radius: var(--radius-s);
+}
+
+.ripple-app button.ripple-action:focus-visible:not(:disabled) {
+	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
 }
 
 .ripple-app button.ripple-action:disabled {
@@ -326,19 +401,77 @@ body.is-mobile .ripple-post-actions {
 	--icon-size: var(--icon-xs);
 }
 
+body.is-mobile .ripple-post-actions {
+	height: auto;
+	min-height: 44px;
+	flex-wrap: wrap;
+}
+
+body.is-mobile .ripple-app button.ripple-action {
+	min-height: 44px;
+}
+
+body.is-mobile .ripple-app button.ripple-action.is-mobile-nonterminal-reflect {
+	display: none;
+}
+
 .ripple-post-menu {
 	margin-left: auto;
 	opacity: 0;
 }
 
-.ripple-post:hover .ripple-post-menu,
-.ripple-post.is-cursor .ripple-post-menu,
+.ripple-app button.ripple-branch-ball {
+	position: absolute;
+	z-index: 1;
+	top: 0;
+	left: calc(var(--ripple-lane, 0) * var(--ripple-branch-step));
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	min-width: 20px;
+	min-height: 20px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: transparent;
+	box-shadow: none;
+	cursor: var(--cursor);
+}
+
+.ripple-app button.ripple-branch-ball.is-root {
+	position: static;
+	flex: 0 0 20px;
+}
+
+.ripple-app button.ripple-branch-ball > .ripple-ball {
+	position: static;
+	margin: 0;
+}
+
+.ripple-app button.ripple-branch-ball:hover > .ripple-ball {
+	transform: scale(1.12);
+}
+
+.ripple-app button.ripple-branch-ball:focus-visible {
+	outline: 2px solid var(--background-modifier-border-focus);
+	outline-offset: 1px;
+}
+
+.ripple-app button.ripple-branch-ball.is-collapsed > .ripple-ball {
+	outline: 2px solid var(--ripple-ball-colour);
+	outline-offset: 2px;
+}
+
+.ripple-row:hover > .ripple-main .ripple-post-menu,
+.ripple-post.is-cursor .ripple-row.is-latest .ripple-post-menu,
 .ripple-post-menu:focus-visible,
 body.is-mobile .ripple-post-menu {
 	opacity: 1;
 }
 
-/* Replies live on the same rail; the AI's thread line is dotted, as in Pile. */
+/* Replies continue along their assigned branch lane; AI arrivals remain distinct. */
 .ripple-reply .ripple-post-body {
 	font-size: var(--font-ui-medium);
 }
@@ -385,11 +518,12 @@ body.is-mobile .ripple-post-menu {
 }
 
 .ripple-composer textarea {
+	box-sizing: border-box;
 	width: 100%;
 	resize: none;
 	overflow: hidden;
 	min-height: calc(var(--font-text-size) * var(--line-height-normal));
-	padding: 0;
+	padding: 1px 2px;
 	border: none;
 	background: transparent;
 	font-family: inherit;
@@ -427,6 +561,29 @@ body.is-mobile .ripple-post-menu {
 .ripple-composer:focus-within .ripple-composer-actions button,
 .ripple-composer-actions button:not(:disabled) {
 	visibility: visible;
+}
+
+body.is-mobile .ripple-composer textarea {
+	max-height: 14rem;
+	max-height: min(35dvh, 14rem);
+	overflow-y: auto;
+	font-size: max(16px, var(--font-text-size));
+}
+
+/* Enter submits the main composer; omitting its action row keeps the mobile
+   writing field compact. Reply and edit composers retain Cancel and submit. */
+body.is-mobile .ripple-column > div > .ripple-composer .ripple-composer-actions {
+	display: none;
+}
+
+body.is-mobile .ripple-composer:focus-within .ripple-composer-actions,
+body.is-mobile .ripple-composer.is-armed .ripple-composer-actions {
+	max-height: 44px;
+}
+
+body.is-mobile .ripple-composer-actions button {
+	min-height: 44px;
+	padding-inline: var(--size-4-4);
 }
 
 .ripple-name-input {

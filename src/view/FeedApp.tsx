@@ -1,4 +1,4 @@
-import { Keymap, Notice } from "obsidian";
+import { Keymap, Notice, TFile, normalizePath } from "obsidian";
 import {
 	KeyboardEvent,
 	MouseEvent,
@@ -9,19 +9,28 @@ import {
 } from "react";
 import { ConfirmModal } from "../modals/ConfirmModal";
 import { NameModal } from "../modals/NameModal";
-import { groupByDay, monthKeyOf } from "../services/journal-model";
+import { groupByDay, monthKeyOf, mostRecentPost } from "../services/journal-model";
 import { Icon } from "./components/Icon";
 import { JournalStore } from "../services/journal-store";
 import {
 	createPost,
+	exportFileName,
+	exportThreadAsNote,
 	nameSuggestion,
+	promotePost,
 	renamePost,
 	saveEdit,
 	setHighlight,
 	splitFrontmatter,
 } from "../services/post-io";
-import { getAI, reflect, threadText } from "../services/reflect";
-import { HIGHLIGHT_COLOURS, HighlightColour, Thread } from "../types";
+import { getAI, reflect, reflectionText, waitForAIReady } from "../services/reflect";
+import {
+	HIGHLIGHT_COLOURS,
+	HighlightColour,
+	Post,
+	ReflectionScope,
+	Thread,
+} from "../types";
 import { usePlugin } from "./context";
 import { Composer } from "./components/Composer";
 import { PostCard } from "./components/PostCard";
@@ -46,27 +55,57 @@ function FilterChip({ label, onClear }: { label: string; onClear: () => void }) 
 	);
 }
 
+function threadContains(thread: Thread, path: string): boolean {
+	return thread.root.path === path || thread.replies.some((reply) => reply.path === path);
+}
+
+function branchAsThread(thread: Thread, terminalPath: string): Thread {
+	const byPath = new Map([thread.root, ...thread.replies].map((post) => [post.path, post]));
+	const replies: Post[] = [];
+	const visited = new Set<string>();
+	let current = byPath.get(terminalPath);
+	while (current && current.path !== thread.root.path && !visited.has(current.path)) {
+		visited.add(current.path);
+		replies.unshift(current);
+		current = current.replyTo ? byPath.get(current.replyTo) : undefined;
+	}
+	if (!current || current.path !== thread.root.path) {
+		throw new Error(`Ripple: export branch left its thread: ${terminalPath}`);
+	}
+	return { root: thread.root, replies };
+}
+
+function visibleAsThread(thread: Thread, visiblePaths: readonly string[]): Thread {
+	const visible = new Set(visiblePaths);
+	return {
+		root: thread.root,
+		replies: thread.replies.filter((reply) => visible.has(reply.path)),
+	};
+}
+
 export function FeedApp({ store }: { store: JournalStore }) {
 	const plugin = usePlugin();
 	const snap = useSyncExternalStore(store.subscribe, store.getSnapshot);
+	const pending = useSyncExternalStore(
+		plugin.subscribeReflectionRun,
+		plugin.getReflectionRun,
+	);
 	const rootRef = useRef<HTMLDivElement>(null);
 	const composerBoxRef = useRef<HTMLDivElement>(null);
 	const [cursor, setCursor] = useState<string | null>(null);
 	const [editing, setEditing] = useState<string | null>(null);
-	const [replying, setReplying] = useState<string | null>(null);
+	const [replying, setReplying] = useState<TFile | null>(null);
 	const [aiReady, setAiReady] = useState(false);
-	const [pending, setPending] = useState<{
-		rootPath: string;
-		providerName: string;
-		text: string;
-		abort: AbortController;
-	} | null>(null);
 
 	useEffect(() => {
 		let alive = true;
-		void getAI().then((ai) => {
-			if (alive) setAiReady(ai !== null);
-		});
+		void waitForAIReady()
+			.then(() => {
+				if (alive) setAiReady(true);
+			})
+			.catch((err: unknown) => {
+				if (alive) console.error("Ripple: AI Providers readiness failed", err);
+			});
 		return () => {
 			alive = false;
 		};
@@ -139,43 +178,145 @@ export function FeedApp({ store }: { store: JournalStore }) {
 	}, [cursor]);
 
 	const fileOf = (path: string) => plugin.app.vault.getFileByPath(path);
+	const targetIsAvailable = (file: TFile) => {
+		const folder = normalizePath(plugin.settings.journalFolder);
+		return (
+			plugin.app.vault.getFileByPath(file.path) === file &&
+			(folder === "" || file.path.startsWith(`${folder}/`))
+		);
+	};
 
 	const openAsNote = (path: string) => {
 		const file = fileOf(path);
 		if (file) void plugin.app.workspace.getLeaf("tab").openFile(file);
 	};
 
-	const submitPost = (body: string) => {
-		void createPost(plugin.app, snap.journalFolder, body).catch((err: unknown) => {
+	const exportThread = (
+		thread: Thread,
+		kind: "thread" | "branch",
+		depths: ReadonlyMap<string, number>,
+	) => {
+		const fileName = exportFileName(
+			thread.root.basename,
+			kind,
+			plugin.settings.exportFilenameTemplate,
+			plugin.settings.exportFilenameDateTimeFormat,
+			new Date(),
+		);
+		const performExport = (name: string) => {
+			void (async () => {
+				try {
+					const file = await exportThreadAsNote(
+						plugin.app,
+						thread,
+						plugin.settings.journalFolder,
+						{
+							userName: plugin.settings.exportUserName,
+							reflectionName: plugin.settings.exportReflectionName,
+							lineTemplate: plugin.settings.exportLineTemplate,
+							noteDateFormat: plugin.settings.exportNoteDateFormat,
+							noteTimeFormat: plugin.settings.exportNoteTimeFormat,
+							depths,
+						},
+						name,
+					);
+					await plugin.app.workspace.getLeaf("tab").openFile(file);
+				} catch (err) {
+					console.error(`Ripple: export ${kind} failed`, err);
+					new Notice(`Could not export the ${kind}.`);
+				}
+			})();
+		};
+		if (plugin.settings.exportPromptForName) {
+			new NameModal(plugin.app, fileName, performExport, {
+				title: kind === "branch" ? "Name branch export" : "Name thread export",
+				submitLabel: "Export",
+			}).open();
+			return;
+		}
+		performExport(fileName);
+	};
+
+	const exportBranch = (
+		thread: Thread,
+		terminalPath: string,
+		visiblePaths: readonly string[],
+		depths: ReadonlyMap<string, number>,
+	) => {
+		try {
+			exportThread(
+				visibleAsThread(branchAsThread(thread, terminalPath), visiblePaths),
+				"branch",
+				depths,
+			);
+		} catch (err) {
+			console.error("Ripple: export branch failed", err);
+			new Notice("Could not export the branch.");
+		}
+	};
+
+	const submitPost = async (body: string): Promise<boolean> => {
+		try {
+			await createPost(plugin.app, snap.journalFolder, body);
+			return true;
+		} catch (err) {
 			console.error("Ripple: create post failed", err);
 			new Notice("Could not create the post.");
-		});
+			return false;
+		}
 	};
 
-	const submitReply = (rootPath: string, rootBasename: string, body: string) => {
-		setReplying(null);
-		void createPost(plugin.app, snap.journalFolder, body, { replyTo: rootBasename }).catch(
-			(err: unknown) => {
-				console.error("Ripple: create reply failed", err, rootPath);
-				new Notice("Could not create the reply.");
-			},
-		);
+	const requestReply = (path: string) => {
+		const target = fileOf(path);
+		if (target) setReplying(target);
 	};
 
-	const finishEdit = (path: string, body: string | null) => {
-		setEditing(null);
-		if (body === null) return;
+	const submitReply = async (body: string): Promise<boolean> => {
+		const target = replying;
+		if (!target) return false;
+		if (!targetIsAvailable(target)) {
+			new Notice("The parent note is no longer in the Ripple folder.");
+			return false;
+		}
+		try {
+			await createPost(plugin.app, store.getSnapshot().journalFolder, body, {
+				replyTo: target,
+			});
+			setReplying(null);
+			return true;
+		} catch (err) {
+			console.error("Ripple: create reply failed", err, target.path);
+			new Notice("Could not create the reply.");
+			return false;
+		}
+	};
+
+	const finishEdit = async (path: string, body: string | null): Promise<boolean> => {
+		if (body === null) {
+			setEditing(null);
+			return true;
+		}
 		const file = fileOf(path);
-		if (!file) return;
-		void saveEdit(plugin.app, file, body).catch((err: unknown) => {
+		if (!file) {
+			new Notice("The note is no longer in the Ripple folder.");
+			return false;
+		}
+		try {
+			await saveEdit(plugin.app, file, body);
+			setEditing(null);
+			return true;
+		} catch (err) {
 			console.error("Ripple: save edit failed", err);
 			new Notice("Could not save the edit.");
-		});
+			return false;
+		}
 	};
 
-	const namePost = (path: string) => {
+	const namePost = (path: string, rootPath = path) => {
 		const file = fileOf(path);
 		if (!file) return;
+		const rootFile = fileOf(rootPath);
+		const isRoot = path === rootPath;
 		void plugin.app.vault.cachedRead(file).then((text) => {
 			// A stamp-named post gets a first-words suggestion; a named one
 			// starts from its current name.
@@ -191,7 +332,7 @@ export function FeedApp({ store }: { store: JournalStore }) {
 							return;
 						}
 						// fileManager mutates the TFile in place; its path is the new one.
-						setCursor(file.path);
+						setCursor(isRoot ? file.path : (rootFile?.path ?? rootPath));
 					})
 					.catch((err: unknown) => {
 						console.error("Ripple: rename failed", err);
@@ -201,12 +342,21 @@ export function FeedApp({ store }: { store: JournalStore }) {
 		});
 	};
 
-	const confirmDelete = (path: string, replyCount: number) => {
+	const promoteToParent = (path: string) => {
+		const file = fileOf(path);
+		if (!file) return;
+		void promotePost(plugin.app, file).catch((err: unknown) => {
+			console.error("Ripple: promote note failed", err);
+			new Notice("Could not promote the note.");
+		});
+	};
+
+	const confirmDelete = (path: string, hasReplies: boolean) => {
 		const file = fileOf(path);
 		if (!file) return;
 		const message =
-			replyCount > 0
-				? "Delete this post? Its replies remain as posts of their own."
+			hasReplies
+				? "Delete this post? Its child branches will remain as separate threads."
 				: "Delete this post?";
 		new ConfirmModal(plugin.app, message, "Delete", () => {
 			void plugin.app.fileManager.trashFile(file).catch((err: unknown) => {
@@ -216,41 +366,90 @@ export function FeedApp({ store }: { store: JournalStore }) {
 		}).open();
 	};
 
-	const reflectOn = (thread: Thread) => {
-		if (pending) return; // one reflection at a time
+	const confirmDeleteThread = (thread: Thread) => {
+		const posts = [thread.root, ...thread.replies];
+		const files = posts
+			.map((post) => fileOf(post.path))
+			.filter((file): file is TFile => file !== null);
+		if (files.length !== posts.length) {
+			new Notice("Could not find every note in the thread.");
+			return;
+		}
+		const count = files.length;
+		new ConfirmModal(
+			plugin.app,
+			`Delete this entire thread? All ${count} notes will be moved to the trash.`,
+			"Delete thread",
+			() => {
+				void (async () => {
+					if (files.some((file) => !targetIsAvailable(file))) {
+						new Notice("The thread changed before it could be deleted.");
+						return;
+					}
+					try {
+						for (const file of files.reverse()) {
+							await plugin.app.fileManager.trashFile(file);
+						}
+					} catch (err) {
+						console.error("Ripple: delete thread failed", err);
+						new Notice("Could not delete the whole thread.");
+					}
+				})();
+			},
+		).open();
+	};
+
+	const reflectOn = (thread: Thread, sourcePath: string, scope: ReflectionScope) => {
+		if (plugin.getReflectionRun()) return;
+		const source = fileOf(sourcePath);
+		if (!source) {
+			new Notice("Could not find the note to reflect on.");
+			return;
+		}
+		const anchor = source;
+		const abort = new AbortController();
+		plugin.setReflectionRun({
+			target: anchor,
+			providerName: "Preparing reflection",
+			text: "",
+			abort,
+		});
 		void (async () => {
-			const ai = await getAI();
-			if (!ai) {
-				new Notice("Install and configure the AI Providers plugin to enable reflections.");
-				return;
-			}
-			const provider = ai.providers.find((p) => p.id === plugin.settings.aiProviderId);
-			if (!provider) {
-				new Notice("Choose an AI provider in Ripple's settings.");
-				return;
-			}
-			const abort = new AbortController();
-			// The TFile is captured now because a rename mid-stream mutates its
-			// path and basename in place; a path lookup at write time would miss.
-			const rootFile = plugin.app.vault.getFileByPath(thread.root.path);
-			setPending({ rootPath: thread.root.path, providerName: provider.name, text: "", abort });
 			try {
+				const ai = await getAI();
+				if (abort.signal.aborted) return;
+				if (!ai) {
+					new Notice("Install and configure the AI Providers plugin to enable reflections.");
+					return;
+				}
+				const provider = ai.providers.find((p) => p.id === plugin.settings.aiProviderId);
+				if (!provider) {
+					new Notice("Choose an AI provider in Ripple's settings.");
+					return;
+				}
+				// Renames mutate this TFile in place, preserving the placement anchor.
+				plugin.setReflectionRun({ target: anchor, providerName: provider.name, text: "", abort });
 				const text = await reflect({
 					ai,
 					provider,
 					systemPrompt: plugin.settings.reflectionPrompt,
-					prompt: await threadText(plugin.app, thread),
-					onProgress: (accumulated) =>
-						setPending((p) =>
-							p && p.rootPath === thread.root.path ? { ...p, text: accumulated } : p,
-						),
+					prompt: await reflectionText(plugin.app, thread, source.path, scope),
+					onProgress: (accumulated) => {
+						const run = plugin.getReflectionRun();
+						if (run?.abort === abort) plugin.setReflectionRun({ ...run, text: accumulated });
+					},
 					abortController: abort,
 				});
+				if (abort.signal.aborted) return;
 				// The file exists only once there is a final text; abort writes nothing.
 				// Folder is re-read at write time (settings can change mid-stream).
 				if (text.trim()) {
-					await createPost(plugin.app, store.getSnapshot().journalFolder, text, {
-						replyTo: rootFile?.basename ?? thread.root.basename,
+					if (!targetIsAvailable(anchor)) {
+						new Notice("The reflection anchor is no longer in the Ripple folder.");
+						return;
+					}
+					await createPost(plugin.app, plugin.settings.journalFolder, text, {
+						replyTo: anchor,
 						ai: true,
 					});
 				}
@@ -260,7 +459,7 @@ export function FeedApp({ store }: { store: JournalStore }) {
 					new Notice("The reflection failed.");
 				}
 			} finally {
-				setPending((p) => (p && p.rootPath === thread.root.path ? null : p));
+				if (plugin.getReflectionRun()?.abort === abort) plugin.setReflectionRun(null);
 			}
 		})();
 	};
@@ -274,10 +473,9 @@ export function FeedApp({ store }: { store: JournalStore }) {
 		});
 	};
 
-	const cycleHighlight = (path: string) => {
-		const current = snap.threads.find((t) => t.root.path === path)?.root.highlight ?? null;
-		const idx = current ? HIGHLIGHT_COLOURS.indexOf(current) : -1;
-		applyHighlight(path, HIGHLIGHT_COLOURS[idx + 1] ?? null);
+	const cycleHighlight = (post: Post) => {
+		const idx = post.highlight ? HIGHLIGHT_COLOURS.indexOf(post.highlight) : -1;
+		applyHighlight(post.path, HIGHLIGHT_COLOURS[idx + 1] ?? null);
 	};
 
 	const focusComposer = () => {
@@ -288,6 +486,8 @@ export function FeedApp({ store }: { store: JournalStore }) {
 		if (e.metaKey || e.ctrlKey || e.altKey) return;
 		const target = e.target as HTMLElement;
 		if (target.closest("textarea, input, [contenteditable=true], button")) return;
+		const selectedThread = cursor ? snap.threads.find((t) => t.root.path === cursor) : undefined;
+		const selectedPost = selectedThread ? mostRecentPost(selectedThread) : null;
 		const move = (delta: number) => {
 			if (rootPaths.length === 0) return;
 			const idx = cursor ? rootPaths.indexOf(cursor) : -1;
@@ -311,30 +511,30 @@ export function FeedApp({ store }: { store: JournalStore }) {
 				move(-1);
 				break;
 			case "Enter":
-				if (cursor) {
+				if (selectedPost) {
 					e.preventDefault();
-					setEditing(cursor);
+					setEditing(selectedPost.path);
 				}
 				break;
 			case "o":
-				if (cursor) openAsNote(cursor);
+				if (selectedPost) openAsNote(selectedPost.path);
 				break;
 			case "r":
-				if (cursor) {
+				if (selectedPost) {
 					e.preventDefault();
-					setReplying(cursor);
+					requestReply(selectedPost.path);
 				}
 				break;
 			case "h":
-				if (cursor) {
+				if (selectedPost) {
 					e.preventDefault();
-					cycleHighlight(cursor);
+					cycleHighlight(selectedPost);
 				}
 				break;
 			case "t":
-				if (cursor) {
+				if (selectedThread && selectedPost) {
 					e.preventDefault();
-					namePost(cursor);
+					namePost(selectedPost.path, selectedThread.root.path);
 				}
 				break;
 			case "n":
@@ -453,42 +653,58 @@ export function FeedApp({ store }: { store: JournalStore }) {
 				{groups.length === 0 && <div className="ripple-empty">Nothing here yet</div>}
 				{groups.map((group) => (
 					<section key={group.label} className="ripple-day">
-						<h2 className="ripple-day-header">{group.label}</h2>
+						<h2 className="ripple-day-header">
+							<span>{group.label}</span>
+						</h2>
 						{group.threads.map((thread) => (
 							<PostCard
 								key={thread.root.path}
 								thread={thread}
 								isCursor={cursor === thread.root.path}
-								isEditing={editing === thread.root.path}
-								isReplying={replying === thread.root.path}
+								editingPath={editing}
+								replyingTo={
+									replying && threadContains(thread, replying.path)
+										? replying.path
+										: null
+								}
 								onSelect={() => setCursor(thread.root.path)}
 								onTagClick={(tag) =>
 									store.setTagFilter(snap.tagFilter === tag ? null : tag)
 								}
-								onRequestEdit={() => setEditing(thread.root.path)}
-								onRequestName={() => namePost(thread.root.path)}
-								onEditDone={(body) => finishEdit(thread.root.path, body)}
-								onRequestReply={() => setReplying(thread.root.path)}
-								onReplySubmit={(body) =>
-									submitReply(thread.root.path, thread.root.basename, body)
+								onRequestEdit={setEditing}
+								onRequestName={(path) => namePost(path, thread.root.path)}
+								onEditDone={finishEdit}
+								onRequestReply={requestReply}
+								onRequestExport={(visiblePaths, depths) =>
+									exportThread(visibleAsThread(thread, visiblePaths), "thread", depths)
 								}
+								onRequestExportBranch={(path, visiblePaths, depths) =>
+									exportBranch(thread, path, visiblePaths, depths)
+								}
+								onReplySubmit={submitReply}
 								onReplyCancel={() => setReplying(null)}
-								onSetHighlight={(colour) => applyHighlight(thread.root.path, colour)}
+								onSetHighlight={applyHighlight}
 								reflectEnabled={
 									(aiReady || plugin.settings.aiProviderId !== null) && !pending
 								}
 								pendingReflection={
-									pending && pending.rootPath === thread.root.path
-										? { providerName: pending.providerName, text: pending.text }
+									pending && threadContains(thread, pending.target.path)
+										? {
+												targetPath: pending.target.path,
+												providerName: pending.providerName,
+												text: pending.text,
+											}
 										: null
 								}
-								onRequestReflect={() => reflectOn(thread)}
-								onStopReflection={() => pending?.abort.abort()}
+								onRequestReflect={(path, scope) => reflectOn(thread, path, scope)}
+								onStopReflection={() => plugin.stopReflection()}
+								onPromotePath={promoteToParent}
 								onOpenPath={openAsNote}
+								onDeleteThread={() => confirmDeleteThread(thread)}
 								onDeletePath={(path) =>
 									confirmDelete(
 										path,
-										path === thread.root.path ? thread.replies.length : 0,
+										thread.replies.some((reply) => reply.replyTo === path),
 									)
 								}
 							/>

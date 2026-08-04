@@ -1,5 +1,5 @@
-import { App, TFile, normalizePath } from "obsidian";
-import { HighlightColour } from "../types";
+import { App, TFile, moment, normalizePath } from "obsidian";
+import { HighlightColour, Thread } from "../types";
 
 function pad(n: number): string {
 	return String(n).padStart(2, "0");
@@ -54,7 +54,11 @@ async function ensureFolder(app: App, path: string): Promise<void> {
 		current = current ? `${current}/${part}` : part;
 		if (!app.vault.getFolderByPath(current)) {
 			// A folder appearing between check and create (sync, parallel writes) is benign.
-			await app.vault.createFolder(current).catch(() => undefined);
+			try {
+				await app.vault.createFolder(current);
+			} catch (err) {
+				if (!app.vault.getFolderByPath(current)) throw err;
+			}
 		}
 	}
 }
@@ -67,34 +71,47 @@ export async function createPost(
 	app: App,
 	folder: string,
 	body: string,
-	opts: { replyTo?: string; ai?: boolean } = {},
+	opts: { replyTo?: TFile; ai?: boolean } = {},
 ): Promise<TFile> {
-	// Same-second collision: bump the moment until the path is free, so the
-	// filename and the created stamp always agree.
-	let moment = new Date();
-	let path = postPath(folder, moment);
-	for (let bump = 1; app.vault.getAbstractFileByPath(path) !== null && bump < 60; bump++) {
-		moment = new Date(moment.getTime() + 1000);
-		path = postPath(folder, moment);
+	let created = new Date();
+	for (;;) {
+		const path = postPath(folder, created);
+		if (app.vault.getAbstractFileByPath(path) !== null) {
+			created = new Date(created.getTime() + 1000);
+			continue;
+		}
+		await ensureFolder(app, path.slice(0, path.lastIndexOf("/")));
+		const lines = ["---", `created: ${isoLocal(created)}`];
+		if (opts.replyTo) {
+			const linktext = app.metadataCache.fileToLinktext(opts.replyTo, path, true);
+			lines.push(`reply_to: ${JSON.stringify(`[[${linktext}]]`)}`);
+		}
+		if (opts.ai) lines.push("ai: true");
+		lines.push("---", "", body.trim(), "");
+		try {
+			return await app.vault.create(path, lines.join("\n"));
+		} catch (err) {
+			if (app.vault.getAbstractFileByPath(path) === null) throw err;
+			created = new Date(created.getTime() + 1000);
+		}
 	}
-	await ensureFolder(app, path.slice(0, path.lastIndexOf("/")));
-	const lines = ["---", `created: ${isoLocal(moment)}`];
-	if (opts.replyTo) lines.push(`reply_to: "[[${opts.replyTo}]]"`);
-	if (opts.ai) lines.push("ai: true");
-	lines.push("---", "", body.trim(), "");
-	return app.vault.create(path, lines.join("\n"));
 }
 
 /** Obsidian-safe basename: forbidden characters stripped, whitespace
  * collapsed, sensible length cap. Returns empty when nothing survives. */
 export function sanitiseName(raw: string): string {
-	return raw
-		.replace(/[/\\:|#^[\]?]/gu, " ")
+	let clean = raw
+		.replace(/[*/\\:"<>|#^[\]?]/gu, " ")
+		.replace(/\p{Cc}/gu, " ")
 		.replace(/^\.+/u, "")
 		.replace(/\s+/gu, " ")
 		.trim()
 		.slice(0, 120)
-		.trim();
+		.replace(/[ .]+$/u, "");
+	if (/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu.test(clean)) {
+		clean = `_${clean}`.slice(0, 120).replace(/[ .]+$/u, "");
+	}
+	return clean;
 }
 
 /** A naming suggestion: the first sentence of the body, capped at 8 words. */
@@ -142,4 +159,150 @@ export async function setHighlight(
 		if (colour) fm.highlight = colour;
 		else delete fm.highlight;
 	});
+}
+
+/** Makes a reply top-level; descendants remain linked to it. */
+export async function promotePost(app: App, file: TFile): Promise<void> {
+	await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+		delete fm.reply_to;
+	});
+}
+
+export const DEFAULT_EXPORT_FILENAME_TEMPLATE = "{{datetime}}";
+export const DEFAULT_EXPORT_FILENAME_DATE_TIME_FORMAT = "YYYY-MM-DD HHmmss";
+export const DEFAULT_EXPORT_USER_NAME = "User";
+export const DEFAULT_EXPORT_REFLECTION_NAME = "Reflection";
+export const DEFAULT_EXPORT_LINE_TEMPLATE =
+	"- **{{date}} · {{time}}** — **{{speaker}}:** {{text}}";
+export const DEFAULT_EXPORT_NOTE_DATE_FORMAT = "D MMM YYYY";
+export const DEFAULT_EXPORT_NOTE_TIME_FORMAT = "HH:mm";
+
+export interface ThreadExportFormat {
+	userName: string;
+	reflectionName: string;
+	lineTemplate: string;
+	noteDateFormat: string;
+	noteTimeFormat: string;
+	depths: ReadonlyMap<string, number>;
+}
+
+export function exportFileName(
+	rootBasename: string,
+	kind: "thread" | "branch",
+	template: string,
+	dateTimeFormat: string,
+	exportedAt: Date,
+): string {
+	const datetime = moment(exportedAt).format(
+		dateTimeFormat.trim() || DEFAULT_EXPORT_FILENAME_DATE_TIME_FORMAT,
+	);
+	const rendered = (template.trim() || DEFAULT_EXPORT_FILENAME_TEMPLATE).replace(
+		/\{\{(datetime|root|type)\}\}/gu,
+		(token, key: string) => {
+			if (key === "datetime") return datetime;
+			if (key === "root") return rootBasename;
+			if (key === "type") return kind;
+			return token;
+		},
+	);
+	return sanitiseName(rendered) || sanitiseName(datetime) || "Ripple export";
+}
+
+function speakerName(name: string, fallback: string): string {
+	return name.replace(/\s+/gu, " ").trim() || fallback;
+}
+
+function frontmatterForExport(head: string): string {
+	if (!head) return "---\nripple_export: true\n---\n\n";
+	const trimmed = head.replace(/(?:\r?\n)+$/u, "");
+	const close = /(\r?\n)---[ \t]*$/u.exec(trimmed);
+	if (!/^\uFEFF?---[ \t]*(?:\r?\n)/u.test(trimmed) || !close) {
+		throw new Error("Ripple: could not preserve export frontmatter");
+	}
+	const eol = close[1] ?? "\n";
+	const lines = trimmed.split(/\r?\n/u);
+	const field = /^(?:ripple_export|"ripple_export"|'ripple_export')\s*:/u;
+	const index = lines.findIndex((line, i) => i > 0 && i < lines.length - 1 && field.test(line));
+	if (index < 0) {
+		lines.splice(lines.length - 1, 0, "ripple_export: true");
+	} else {
+		lines[index] = "ripple_export: true";
+		let end = index + 1;
+		while (
+			end < lines.length - 1 &&
+			(lines[end]?.trim() === "" || /^[ \t]/u.test(lines[end] ?? ""))
+		) {
+			end++;
+		}
+		lines.splice(index + 1, end - index - 1);
+	}
+	return `${lines.join(eol)}${eol}${eol}`;
+}
+
+function exportPath(app: App, folder: string, stem: string): string {
+	for (let copy = 1; ; copy++) {
+		const suffix = copy === 1 ? "" : ` ${copy}`;
+		const path = normalizePath(folder ? `${folder}/${stem}${suffix}.md` : `${stem}${suffix}.md`);
+		if (!app.vault.getAbstractFileByPath(path)) return path;
+	}
+}
+
+/** Combines the persisted thread into a normal note. */
+export async function exportThreadAsNote(
+	app: App,
+	thread: Thread,
+	journalFolder: string,
+	format: ThreadExportFormat,
+	fileName: string,
+): Promise<TFile> {
+	const sources = await Promise.all(
+		[thread.root, ...thread.replies].map(async (post) => {
+			const file = app.vault.getFileByPath(post.path);
+			if (!file) throw new Error(`Ripple: export source disappeared: ${post.path}`);
+			const text = await app.vault.cachedRead(file);
+			return { post, file, ...splitFrontmatter(app, file, text) };
+		}),
+	);
+	const root = sources[0];
+	if (!root) throw new Error("Ripple: export has no root post");
+	const stem = sanitiseName(fileName) || "Ripple export";
+	const preferredParent = app.fileManager.getNewFileParent(root.file.path, `${stem}.md`);
+	const journal = normalizePath(journalFolder);
+	const parentPath = normalizePath(preferredParent.path);
+	const parentInsideJournal =
+		journal === "" ||
+		journal === "/" ||
+		parentPath === journal ||
+		parentPath.startsWith(`${journal}/`);
+	const parent = parentInsideJournal ? app.vault.getRoot() : preferredParent;
+	const path = exportPath(app, parent.path, stem);
+	const userName = speakerName(format.userName, DEFAULT_EXPORT_USER_NAME);
+	const reflectionName = speakerName(
+		format.reflectionName,
+		DEFAULT_EXPORT_REFLECTION_NAME,
+	);
+	const lineTemplate = format.lineTemplate.trim() || DEFAULT_EXPORT_LINE_TEMPLATE;
+	const noteDateFormat =
+		format.noteDateFormat.trim() || DEFAULT_EXPORT_NOTE_DATE_FORMAT;
+	const noteTimeFormat =
+		format.noteTimeFormat.trim() || DEFAULT_EXPORT_NOTE_TIME_FORMAT;
+	const lines = sources.map(({ post, file, body }) => {
+		const speaker = post.ai ? reflectionName : userName;
+		const content = body.replace(/\s+/gu, " ").trim();
+		const created = moment(post.created);
+		const timestamp = created.isValid() ? created : moment(file.stat.ctime);
+		const line = lineTemplate.replace(
+			/\{\{(date|time|speaker|text)\}\}/gu,
+			(token, key: string) => {
+				if (key === "date") return timestamp.format(noteDateFormat);
+				if (key === "time") return timestamp.format(noteTimeFormat);
+				if (key === "speaker") return speaker;
+				if (key === "text") return content;
+				return token;
+			},
+		);
+		const depth = Math.max(0, Math.floor(format.depths.get(post.path) ?? 0));
+		return `${"\t".repeat(depth)}${line}`;
+	});
+	return app.vault.create(path, `${frontmatterForExport(root.head)}${lines.join("\n")}\n`);
 }
