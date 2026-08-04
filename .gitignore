@@ -3,4 +3,5 @@ main.js
 data.json
 *.js.map
 dev-vault/
+/dev-vault.zip
 .DS_Store
