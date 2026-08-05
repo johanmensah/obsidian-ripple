@@ -6,7 +6,7 @@ A micro-journal inside your Obsidian vault, in the spirit of [Pile](https://gith
 
 Ripple is an independent project inspired by Pile; it is not affiliated with or endorsed by Pile or Udara Jay.
 
-## What's new in 0.2.0
+## What's new in 0.2.1
 
 - **Branch-aware threads** show continuations and side branches as a tree, with separate controls to collapse a branch or every note below a fork. Branches can be temporarily flattened and restored without changing their saved relationships.
 
@@ -15,6 +15,8 @@ Ripple is an independent project inspired by Pile; it is not affiliated with or 
 - **Thread and branch exports** preserve the visible tree as configurable timestamped Markdown rows. Collapsed notes stay out of the export, nested branches retain their depth, and export names are collision-safe.
 
 - **Safer writing** retains post, reply, and edit drafts when a vault write fails and retries timestamp filename collisions.
+
+- Bug fixes
 
 ## Navigation
 
