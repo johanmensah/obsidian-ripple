@@ -564,7 +564,6 @@ body.is-mobile .ripple-post-menu {
 }
 
 body.is-mobile .ripple-composer textarea {
-	max-height: 14rem;
 	max-height: min(35dvh, 14rem);
 	overflow-y: auto;
 	font-size: max(16px, var(--font-text-size));

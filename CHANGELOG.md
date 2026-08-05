@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Move the release workflow to the current Node 24-based checkout and setup-node actions, pinned to immutable commits.
+- Make Obsidian's bundled Moment typing explicit for external source audits, isolate the 1.12.7 settings fallback, and remove a redundant mobile composer CSS fallback.
 
 ## 0.2.0
 

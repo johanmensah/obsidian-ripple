@@ -1,5 +1,9 @@
+import type { Moment } from "moment";
 import { App, TFile, moment, normalizePath } from "obsidian";
 import { HighlightColour, Thread } from "../types";
+
+// Obsidian supplies the runtime value; the explicit type also survives external source audits.
+const makeMoment = moment as (input: Date | number) => Moment;
 
 function pad(n: number): string {
 	return String(n).padStart(2, "0");
@@ -193,7 +197,7 @@ export function exportFileName(
 	dateTimeFormat: string,
 	exportedAt: Date,
 ): string {
-	const datetime = moment(exportedAt).format(
+	const datetime = makeMoment(exportedAt).format(
 		dateTimeFormat.trim() || DEFAULT_EXPORT_FILENAME_DATE_TIME_FORMAT,
 	);
 	const rendered = (template.trim() || DEFAULT_EXPORT_FILENAME_TEMPLATE).replace(
@@ -289,8 +293,8 @@ export async function exportThreadAsNote(
 	const lines = sources.map(({ post, file, body }) => {
 		const speaker = post.ai ? reflectionName : userName;
 		const content = body.replace(/\s+/gu, " ").trim();
-		const created = moment(post.created);
-		const timestamp = created.isValid() ? created : moment(file.stat.ctime);
+		const created = makeMoment(post.created);
+		const timestamp = created.isValid() ? created : makeMoment(file.stat.ctime);
 		const line = lineTemplate.replace(
 			/\{\{(date|time|speaker|text)\}\}/gu,
 			(token, key: string) => {

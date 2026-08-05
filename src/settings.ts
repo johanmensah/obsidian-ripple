@@ -143,7 +143,7 @@ export class RippleSettingTab extends PluginSettingTab {
 			this.update();
 			return;
 		}
-		this.display();
+		this.renderLegacySettings();
 	}
 
 	private restoreDefaults(): void {
@@ -379,15 +379,12 @@ export class RippleSettingTab extends PluginSettingTab {
 		return this.plugin.saveSettings();
 	}
 
-	/** Imperative fallback, per the API guidance: the declarative renderer
-	 * does not exist before 1.13.0 and minAppVersion is 1.12.7. The
-	 * deprecation is allowed in eslint.config.mjs for the same reason. */
 	display(): void {
-		if (requireApiVersion("1.13.0")) {
-			// 1.13 renders getSettingDefinitions itself.
-			super.display();
-			return;
-		}
+		this.renderLegacySettings();
+	}
+
+	/** Imperative fallback for Obsidian 1.12.7; 1.13+ renders the definitions above. */
+	private renderLegacySettings(): void {
 		this.probeProviders();
 		const { containerEl } = this;
 		containerEl.empty();
@@ -405,7 +402,7 @@ export class RippleSettingTab extends PluginSettingTab {
 					.onClick(() => {
 						new FolderPicker(this.app, (folder) => {
 							void this.plugin.setJournalFolder(folder.path);
-							this.display();
+							this.renderLegacySettings();
 						}).open();
 					}),
 			);
