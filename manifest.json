@@ -1,7 +1,7 @@
 {
 	"id": "ripple",
 	"name": "Ripple",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"minAppVersion": "1.12.7",
 	"description": "A micro-journal over one vault folder: a feed of posts, threaded replies, and AI reflections.",
 	"author": "Johan Mensah",
