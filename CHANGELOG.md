@@ -6,7 +6,7 @@
 
 ## 0.2.0
 
-- Add terminal actions that export either the revealed thread tree or one direct root-to-terminal branch to a standalone Markdown note in Obsidian's configured new-note location.
+- Add actions to final note in a thread that exports either the revealed thread tree or one direct root-to-terminal branch to a standalone Markdown note in Obsidian's configured new-note location.
 - Omit notes hidden by collapsed branches or subtrees from thread and branch exports.
 - Replace headed Markdown exports with configurable timestamped transcript rows and user and reflection speakers, preserving nested branch depth as a Markdown list.
 - Default export filenames to their export timestamp, with configurable filename templates, an optional naming prompt, collision-safe suffixes, and a restore-defaults action that preserves the journal folder.
@@ -23,8 +23,7 @@
 - Separate fork-origin actions for collapsing side branches and collapsing every note below the origin.
 - Add view-only fork flattening while preserving branch identity and terminal reflection semantics.
 - Preserve post, reply, and edit drafts when a journal write fails, and retry timestamp filename collisions safely.
-- Update vulnerable development-only transitive dependencies so both full and production dependency audits report zero vulnerabilities.
-- Gate releases on metadata validation, a clean dependency install, audit, lint, and build checks, then attest the exact release assets.
+- bug fixes
 
 ## 0.1.2
 
